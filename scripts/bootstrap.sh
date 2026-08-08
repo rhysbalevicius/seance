@@ -180,6 +180,7 @@ Host gh-$pid
   User git
   IdentityFile ~/.ssh/${pid}_ed25519
   IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
 EOF
     fi
     mkdir -p "/srv/projects/$pid"
@@ -278,6 +279,10 @@ fi
 # --- Projects ---------------------------------------------------------------
 # /etc/seance/projects.json lists repos to clone. Repo URLs are not secret;
 # the deploy keys that reach them come from the sanctum.
+
+# GitHub's host key has to be known before the non-interactive clone, or ssh
+# fails host-key verification (there's no TTY at boot to accept it). Idempotent.
+sudo -u "$DEV_USER" bash -c 'install -d -m 0700 ~/.ssh; ssh-keygen -F github.com >/dev/null 2>&1 || ssh-keyscan -t rsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null'
 
 log "projects"
 sudo -u "$DEV_USER" /usr/local/bin/seance-clone-projects || \
