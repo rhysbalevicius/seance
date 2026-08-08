@@ -1,0 +1,9 @@
+# Copy to .sops.yaml (gitignored) and paste in the secrets_kms_key_arn output
+# from `terraform output` in terraform/stacks/sanctum.
+#
+# sops reads this only when ENCRYPTING, to decide which key to use. The ARN is
+# also written into each encrypted file's own metadata, which is how the box
+# knows what to ask KMS to decrypt without carrying this file.
+creation_rules:
+  - path_regex: secrets/.*\.sops\.ya?ml$
+    kms: arn:aws:kms:eu-north-1:SANCTUM_ACCOUNT:key/00000000-0000-0000-0000-000000000000

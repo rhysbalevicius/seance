@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# credential_process for the 'sanctum' AWS profile: assume the sanctum account's
+# seance-access role using the instance role's ambient credentials.
+# No static keys touch disk; sessions last 1h and refresh on demand.
+set -euo pipefail
+source /etc/seance/seance.env
+
+# Callers may export AWS_PROFILE=sanctum (sops needs the env var, not a flag).
+# Clearing it here keeps the assume-role below on the instance role instead
+# of recursing into this same helper.
+unset AWS_PROFILE AWS_DEFAULT_PROFILE
+
+# --region: this call runs on the DEFAULT credential chain (instance role via
+# IMDS), which has no region configured -- without the flag, aws cli v2 errors.
+exec aws sts assume-role \
+  --region "$SANCTUM_REGION" \
+  --role-arn "$SANCTUM_ROLE_ARN" \
+  --role-session-name "seance-$(hostname -s)" \
+  --external-id "$SANCTUM_EXTERNAL_ID" \
+  --duration-seconds 3600 \
+  --query '{Version: `1`, AccessKeyId: Credentials.AccessKeyId, SecretAccessKey: Credentials.SecretAccessKey, SessionToken: Credentials.SessionToken, Expiration: Credentials.Expiration}' \
+  --output json
