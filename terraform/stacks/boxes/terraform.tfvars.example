@@ -1,0 +1,75 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Nothing in this file is a
+# credential: API keys, deploy keys and the Tailscale auth key live
+# sops-encrypted under secrets/ and are applied by the sanctum stack. That means
+# this stack's state contains no secret material either.
+
+# --- Shared: every box inherits these unless it overrides -------------------
+
+shared = {
+  # This repo, public, so each box can clone it at boot:
+  repo_url = "https://github.com/YOURUSER/seance.git"
+  repo_ref = "main"
+
+  # From `terraform output` in stacks/sanctum:
+  sanctum_role_arn    = "arn:aws:iam::SANCTUM_ACCOUNT:role/seance-access"
+  sanctum_bucket      = "yourname-seance-artifacts"
+  secrets_bucket    = "yourname-seance-secrets"
+  sanctum_region      = "eu-north-1"
+  sanctum_external_id = "same-random-string-as-sanctum"
+
+  # Which coding-agent CLIs to install (see README "Agent auth" for the
+  # per-tool login story):
+  agents = ["claude", "codex", "cursor", "gemini"]
+
+  instance_type  = "m7i.xlarge"
+  root_volume_gb = 200
+
+  # Repo URLs are not secret. The deploy keys that reach them are, and those
+  # live in the secrets file; `profile` matches a git_profiles entry there.
+  projects = [
+    {
+      profile = "personal"
+      url     = "gh-personal:YOURUSER/webapp.git"
+      dir     = "webapp"
+    },
+    {
+      profile    = "personal"
+      url        = "gh-personal:YOURUSER/api.git"
+      dir        = "services/api"
+      ref        = "feat/some-branch"
+      setup_hint = "Needs the dev compose overlay: docker compose -f docker-compose.yml -f docker-compose.dev.yml up; the first build warms a large dependency cache and takes 10-30 min."
+    },
+  ]
+}
+
+# --- Boxes ------------------------------------------------------------------
+# Map key = hostname = Tailscale machine name = key pair name = the name of the
+# optional per-box secrets overlay (secrets/boxes/<key>.sops.yaml). `target`
+# picks the aws provider alias, and with it the account and region. Omit a
+# field to inherit it from `shared`.
+
+boxes = {
+  agent1 = {
+    target        = "primary"
+    vanity_domain = "agent1.example.com"
+  }
+
+  # A second box in the same account, cheaper, no vanity hostnames, and
+  # carrying a different project set. Give it its own extra API key by
+  # dropping a secrets/boxes/agent2.sops.yaml alongside the shared file.
+  # agent2 = {
+  #   target        = "primary"
+  #   instance_type = "m7i.large"
+  #   projects = [
+  #     { profile = "personal", url = "gh-personal:YOURUSER/toolkit.git", dir = "toolkit" },
+  #   ]
+  # }
+
+  # A box in another account or region needs its provider alias wired first --
+  # see the TARGETS comments in providers.tf, main.tf, outputs.tf and the
+  # target validation in variables.tf:
+  # agent3 = {
+  #   target        = "secondary"
+  #   vanity_domain = "agent3.example.com"
+  # }
+}
