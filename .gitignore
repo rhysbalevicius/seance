@@ -1,0 +1,19 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+crash.log
+
+# Secrets. These are sops-encrypted, but the ciphertext and the KMS key ARN
+# still stay off a public repo. The sanctum account's bucket is versioned, so
+# that is where the history lives.
+secrets/
+.sops.yaml
+
+# Local scratch
+*.pem
+*.key
+.env
