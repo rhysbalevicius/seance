@@ -113,7 +113,9 @@ if [[ -s /etc/seance/ssh_authorized_keys ]]; then
   install -d -m 0700 -o "$DEV_USER" -g "$DEV_USER" "$DEV_HOME/.ssh"
   ak="$DEV_HOME/.ssh/authorized_keys"
   touch "$ak"
-  while IFS= read -r key; do
+  # `|| [[ -n "$key" ]]` so the last key isn't dropped when the file has no
+  # trailing newline -- user_data writes the keys without one.
+  while IFS= read -r key || [[ -n "$key" ]]; do
     [[ -n "$key" ]] || continue
     grep -qxF "$key" "$ak" || echo "$key" >> "$ak"
   done < /etc/seance/ssh_authorized_keys
