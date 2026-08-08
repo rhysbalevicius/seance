@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Nothing here is secret --
+# the actual credentials live sops-encrypted under secrets/, and terraform only
+# ever handles the ciphertext.
+region               = "eu-north-1"
+artifact_bucket_name = "yourname-seance-artifacts"
+secrets_bucket_name  = "yourname-seance-secrets"
+trusted_account_ids  = ["111111111111"] # every account you will run a box in
+external_id          = "generate-a-random-string-here"
