@@ -8,5 +8,5 @@ output "private_ip" {
 }
 
 output "next_step" {
-  value = "Watch bootstrap: the box appears in your tailnet as '${var.box_name}' within ~3 min; then `ssh dev@${var.box_name}` (with the key you put in ssh_authorized_keys) and `tail -f /var/log/seance-bootstrap.log`."
+  value = "Watch bootstrap: the box appears in your tailnet as '${var.box_name}' within ~3 min; then `ssh ${var.dev_user}@${var.box_name}` (with the key you put in ssh_authorized_keys) and `tail -f /var/log/seance-bootstrap.log`."
 }

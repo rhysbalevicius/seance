@@ -82,6 +82,8 @@ boxes = {
 }
 ```
 
+The login account is `dev` by default; set `dev_user` (in `shared` or per box) to change it, and connect as that name (`ssh <dev_user>@<box>`).
+
 SSH keys are yours — generate one per box and put the public half in that box's `ssh_authorized_keys` (or `shared.ssh_authorized_keys` for a key on every box). Nothing is generated in AWS:
 
 ```bash

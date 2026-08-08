@@ -12,6 +12,7 @@ echo "=== seance user-data $(date -u +%FT%TZ) ==="
 mkdir -p /etc/seance
 cat > /etc/seance/seance.env <<'EOF'
 SEANCE_NAME=${box_name}
+SEANCE_USER=${dev_user}
 SANCTUM_ROLE_ARN=${sanctum_role_arn}
 SANCTUM_BUCKET=${sanctum_bucket}
 SANCTUM_REGION=${sanctum_region}

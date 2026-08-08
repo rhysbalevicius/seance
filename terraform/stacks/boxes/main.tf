@@ -15,6 +15,7 @@ locals {
     vpc_id         = b.vpc_id != null ? b.vpc_id : ""
     subnet_id      = b.subnet_id != null ? b.subnet_id : ""
     ami_id         = b.ami_id != null ? b.ami_id : ""
+    dev_user       = b.dev_user != null ? b.dev_user : var.shared.dev_user
     tags           = merge(var.shared.tags, b.tags != null ? b.tags : {})
     # authorized_keys are additive: shared keys (e.g. your laptop) on every box,
     # plus any per-box keys.
@@ -37,6 +38,7 @@ module "primary" {
   subnet_id           = each.value.subnet_id
   ami_id              = each.value.ami_id
   tags                = each.value.tags
+  dev_user            = each.value.dev_user
   ssh_authorized_keys = each.value.ssh_authorized_keys
 
   repo_url            = var.shared.repo_url

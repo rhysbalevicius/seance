@@ -18,6 +18,17 @@ variable "box_name" {
   }
 }
 
+variable "dev_user" {
+  description = "Login account created on the box; you ssh in as this. Its home holds the agent CLIs, credentials, and worktrees."
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.dev_user)) && var.dev_user != "root"
+    error_message = "dev_user must be a valid lowercase Linux username (start with a letter or underscore) and not root."
+  }
+}
+
 # --- SSH access -------------------------------------------------------------
 
 variable "ssh_authorized_keys" {

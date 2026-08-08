@@ -21,6 +21,7 @@ variable "shared" {
     instance_type       = optional(string, "m7i.xlarge")
     root_volume_gb      = optional(number, 200)
     sops_version        = optional(string, "v3.13.1")
+    dev_user            = optional(string, "dev")
     tags                = optional(map(string), {})
     # Public SSH keys put on every box (e.g. your laptop). Per-box keys add to
     # these; you generate the private halves yourself, nothing is AWS-managed.
@@ -49,6 +50,7 @@ variable "boxes" {
     subnet_id           = optional(string)
     ami_id              = optional(string)
     tags                = optional(map(string))
+    dev_user            = optional(string)
     ssh_authorized_keys = optional(list(string))
     projects = optional(list(object({
       profile    = string

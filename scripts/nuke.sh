@@ -13,6 +13,8 @@
 set -euo pipefail
 
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
+source /etc/seance/seance.env 2>/dev/null || true
+DEV_USER="${SEANCE_USER:-dev}"
 HASH_FILE=/etc/seance/nuke.sha256
 [[ -f "$HASH_FILE" ]] || { echo "no $HASH_FILE; refusing" >&2; exit 1; }
 
@@ -57,7 +59,7 @@ rm -rf /home/* /srv/projects /srv/worktrees /opt/seance
 # once a re-provision rejoins the tailnet. Put them back for dev and ubuntu.
 if [[ -s /etc/seance/ssh_authorized_keys ]]; then
   echo "[nuke] restore authorized_keys"
-  for u in ubuntu dev; do
+  for u in ubuntu "$DEV_USER"; do
     id "$u" >/dev/null 2>&1 || continue
     h="$(getent passwd "$u" | cut -d: -f6)"
     [[ -n "$h" ]] || continue

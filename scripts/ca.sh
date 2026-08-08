@@ -65,7 +65,7 @@ case "$cmd" in
     echo "  A  ${VANITY_DOMAIN%%.*}    ${ts_ip:-<tailscale ip>}"
     echo "  A  *.${VANITY_DOMAIN%%.*}  ${ts_ip:-<tailscale ip>}"
     echo
-    echo "trust the root on each device:  ssh dev@$SEANCE_NAME seance-ca root > seance-root.crt"
+    echo "trust the root on each device:  ssh ${SEANCE_USER:-dev}@$SEANCE_NAME seance-ca root > seance-root.crt"
     echo "  macOS: open Keychain Access, import, set 'Always Trust' (or:"
     echo "  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain seance-root.crt)"
     echo "  iOS: AirDrop the file, install profile, then Settings -> General -> About -> Certificate Trust Settings"

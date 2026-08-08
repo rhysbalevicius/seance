@@ -24,6 +24,10 @@ shared = {
   instance_type  = "m7i.xlarge"
   root_volume_gb = 200
 
+  # Login account created on the box (you ssh in as this). Default "dev".
+  # Override per box in the boxes map if you want different names.
+  dev_user = "dev"
+
   # Public SSH keys installed on EVERY box (e.g. your laptop). Generate the
   # private half yourself: ssh-keygen -t ed25519 -f ~/.ssh/seance, then paste
   # ~/.ssh/seance.pub here. Per-box keys (below) add to these.

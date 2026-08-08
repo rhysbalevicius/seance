@@ -152,6 +152,7 @@ resource "aws_instance" "box" {
   # it is sensitive (authorized_keys are public keys).
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     box_name            = var.box_name
+    dev_user            = var.dev_user
     sanctum_role_arn    = var.sanctum_role_arn
     sanctum_bucket      = var.sanctum_bucket
     sanctum_region      = var.sanctum_region

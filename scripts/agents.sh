@@ -13,7 +13,7 @@
 set -euo pipefail
 source /etc/seance/seance.env 2>/dev/null || true
 
-DEV_USER=dev
+DEV_USER="${SEANCE_USER:-dev}"
 DEV_HOME=/home/$DEV_USER
 KNOWN="claude codex cursor gemini"
 

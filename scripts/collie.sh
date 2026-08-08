@@ -17,7 +17,7 @@ source /etc/seance/seance.env 2>/dev/null || true
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 : "${VANITY_DOMAIN:?VANITY_DOMAIN not set; collie is served at collie.<vanity_domain>}"
 
-DEV_USER=dev
+DEV_USER="${SEANCE_USER:-dev}"
 DEV_HOME="$(getent passwd "$DEV_USER" | cut -d: -f6)"
 PORT=8787
 HOSTN="collie.$VANITY_DOMAIN"

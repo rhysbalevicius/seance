@@ -11,7 +11,7 @@ set -euo pipefail
 source /etc/seance/seance.env
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEV_USER=dev
+DEV_USER="${SEANCE_USER:-dev}"   # login account; set via dev_user in tfvars
 DEV_HOME=/home/$DEV_USER
 log() { echo "[bootstrap] $*"; }
 
@@ -289,4 +289,4 @@ sudo -u "$DEV_USER" /usr/local/bin/seance-clone-projects || \
   log "WARNING: clone-projects failed (is /etc/seance/projects.json present?)"
 
 mkdir -p /var/lib/seance && date -u +%FT%TZ > /var/lib/seance/bootstrapped
-log "done. ssh dev@$SEANCE_NAME (over Tailscale) and run 'herdr'."
+log "done. ssh $DEV_USER@$SEANCE_NAME (over Tailscale) and run 'herdr'."
