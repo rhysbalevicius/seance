@@ -23,10 +23,11 @@ SOPS_VERSION=${sops_version}
 EOF
 chmod 0644 /etc/seance/seance.env
 
-# Public half of the box's key pair. Bootstrap installs it for the dev user,
-# and the nuke restores it so break-glass access survives a wipe.
-echo '${ssh_public_key_b64}' | base64 -d > /etc/seance/ssh_authorized_key
-chmod 0644 /etc/seance/ssh_authorized_key
+# Your authorized SSH public keys (generated on your machine, one per line).
+# Bootstrap installs them for the dev user; the nuke restores them so access
+# survives a wipe. Public keys, so not sensitive.
+echo '${ssh_authorized_keys_b64}' | base64 -d > /etc/seance/ssh_authorized_keys
+chmod 0644 /etc/seance/ssh_authorized_keys
 
 # Repo URLs are not credentials; the deploy keys that reach them are, and those
 # come from the secrets bucket.

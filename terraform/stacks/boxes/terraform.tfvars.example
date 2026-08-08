@@ -24,6 +24,13 @@ shared = {
   instance_type  = "m7i.xlarge"
   root_volume_gb = 200
 
+  # Public SSH keys installed on EVERY box (e.g. your laptop). Generate the
+  # private half yourself: ssh-keygen -t ed25519 -f ~/.ssh/seance, then paste
+  # ~/.ssh/seance.pub here. Per-box keys (below) add to these.
+  ssh_authorized_keys = [
+    # "ssh-ed25519 AAAA... you@laptop",
+  ]
+
   # Repo URLs are not secret. The deploy keys that reach them are, and those
   # live in the secrets file; `profile` matches a git_profiles entry there.
   projects = [
@@ -43,15 +50,21 @@ shared = {
 }
 
 # --- Boxes ------------------------------------------------------------------
-# Map key = hostname = Tailscale machine name = key pair name = the name of the
-# optional per-box secrets overlay (secrets/boxes/<key>.sops.yaml). `target`
-# picks the aws provider alias, and with it the account and region. Omit a
-# field to inherit it from `shared`.
+# Map key = hostname = Tailscale machine name = the name of the optional per-box
+# secrets overlay (secrets/boxes/<key>.sops.yaml). `target` picks the aws
+# provider alias, and with it the account and region. Omit a field to inherit
+# it from `shared`.
 
 boxes = {
   agent1 = {
     target        = "primary"
     vanity_domain = "agent1.example.com"
+    # A key just for this box (generate it per box):
+    #   ssh-keygen -t ed25519 -f ~/.ssh/seance-agent1
+    # then connect over the tailnet: ssh -i ~/.ssh/seance-agent1 dev@agent1
+    ssh_authorized_keys = [
+      # "ssh-ed25519 AAAA... agent1",
+    ]
   }
 
   # A second box in the same account, cheaper, no vanity hostnames, and

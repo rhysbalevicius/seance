@@ -22,6 +22,9 @@ variable "shared" {
     root_volume_gb      = optional(number, 200)
     sops_version        = optional(string, "v3.13.1")
     tags                = optional(map(string), {})
+    # Public SSH keys put on every box (e.g. your laptop). Per-box keys add to
+    # these; you generate the private halves yourself, nothing is AWS-managed.
+    ssh_authorized_keys = optional(list(string), [])
     projects = optional(list(object({
       profile    = string
       url        = string
@@ -34,18 +37,19 @@ variable "shared" {
 
 variable "boxes" {
   description = <<-EOT
-    One entry per box; the map key becomes the hostname, the Tailscale machine name, the EC2 key pair name, and the name of the optional per-box secrets overlay at secrets/boxes/<name>.sops.yaml. `target` names the aws provider alias -- and therefore the account and region -- the box lands in. Every other field is optional and falls back to var.shared.
+    One entry per box; the map key becomes the hostname, the Tailscale machine name, and the name of the optional per-box secrets overlay at secrets/boxes/<name>.sops.yaml. `target` names the aws provider alias -- and therefore the account and region -- the box lands in. Every other field is optional and falls back to var.shared. ssh_authorized_keys adds box-specific public keys on top of shared.ssh_authorized_keys.
   EOT
   type = map(object({
-    target         = string
-    vanity_domain  = optional(string)
-    agents         = optional(list(string))
-    instance_type  = optional(string)
-    root_volume_gb = optional(number)
-    vpc_id         = optional(string)
-    subnet_id      = optional(string)
-    ami_id         = optional(string)
-    tags           = optional(map(string))
+    target              = string
+    vanity_domain       = optional(string)
+    agents              = optional(list(string))
+    instance_type       = optional(string)
+    root_volume_gb      = optional(number)
+    vpc_id              = optional(string)
+    subnet_id           = optional(string)
+    ami_id              = optional(string)
+    tags                = optional(map(string))
+    ssh_authorized_keys = optional(list(string))
     projects = optional(list(object({
       profile    = string
       url        = string

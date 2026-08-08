@@ -4,10 +4,11 @@
 #
 # Network posture: ZERO ingress. The security group admits nothing; Tailscale
 # establishes connectivity outbound (direct via NAT traversal or relayed over
-# DERP), SSH happens over Tailscale SSH, and web apps are exposed via nginx
-# on the vanity domain (a manual wildcard record at the registrar pointing at
-# the Tailscale IP -- publicly resolvable, tailnet-only routable) with certs
-# from a private CA generated on the box. No public attack surface.
+# DERP), SSH is key-based over the tailnet against keys you generate off-box
+# (var.ssh_authorized_keys), and web apps are exposed via nginx on the vanity
+# domain (a manual wildcard record at the registrar pointing at the Tailscale
+# IP -- publicly resolvable, tailnet-only routable) with certs from a private
+# CA generated on the box. No public attack surface.
 #
 # Secrets do NOT travel through here. They sit sops-encrypted in the sanctum
 # account's secrets bucket and the box fetches and decrypts them at first boot
@@ -81,24 +82,6 @@ resource "aws_security_group" "box" {
   }
 }
 
-# --- Break-glass key pair ---------------------------------------------------
-# Generated per box and surfaced as a sensitive output for you to save to
-# disk. Note the SG has no ingress, so this key is not a live door: it is what
-# lets you into the root volume after attaching it to a rescue instance, and
-# what would start working immediately if you ever add an ingress path.
-# The private half lives in terraform state -- keep state private.
-
-resource "tls_private_key" "box" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "box" {
-  key_name   = var.box_name
-  public_key = tls_private_key.box.public_key_openssh
-  tags       = local.tags
-}
-
 # --- Instance role: assume sanctum (artifacts), nothing else ----------------
 
 data "aws_iam_policy_document" "instance_trust" {
@@ -146,7 +129,9 @@ resource "aws_instance" "box" {
   subnet_id              = local.subnet_id
   vpc_security_group_ids = [aws_security_group.box.id]
   iam_instance_profile   = aws_iam_instance_profile.box.name
-  key_name               = aws_key_pair.box.key_name
+
+  # No key_name on purpose: SSH keys are yours, generated off-box and installed
+  # into the dev user's authorized_keys via user_data. Nothing AWS-managed.
 
   metadata_options {
     http_endpoint = "enabled"
@@ -164,7 +149,7 @@ resource "aws_instance" "box" {
   }
 
   # Base64-wrapped so arbitrary content survives the shell heredocs; none of
-  # it is sensitive.
+  # it is sensitive (authorized_keys are public keys).
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     box_name            = var.box_name
     sanctum_role_arn    = var.sanctum_role_arn
@@ -178,8 +163,8 @@ resource "aws_instance" "box" {
     repo_ref            = var.repo_ref
     sops_version        = var.sops_version
 
-    ssh_public_key_b64 = base64encode(tls_private_key.box.public_key_openssh)
-    projects_b64       = base64encode(jsonencode(var.projects))
+    ssh_authorized_keys_b64 = base64encode(join("\n", var.ssh_authorized_keys))
+    projects_b64            = base64encode(jsonencode(var.projects))
   })
 
   lifecycle {
@@ -189,14 +174,13 @@ resource "aws_instance" "box" {
     }
 
     # Everything here is ForceNew, and a replacement destroys the root volume
-    # with whatever uncommitted agent work is on it. All four are pinned at
+    # with whatever uncommitted agent work is on it. All three are pinned at
     # first apply so a routine plan can never propose one:
     #   user_data -- first-boot material; rotate on the box instead
     #   ami       -- Canonical republishes noble every few weeks
     #   subnet_id -- see the sort() note in locals
-    #   key_name  -- regenerating the key pair would otherwise recycle the box
     # To move or rebuild deliberately: taint the instance, then apply.
-    ignore_changes = [user_data, ami, subnet_id, key_name]
+    ignore_changes = [user_data, ami, subnet_id]
   }
 
   # The instance role is useless until its inline policy exists; without this

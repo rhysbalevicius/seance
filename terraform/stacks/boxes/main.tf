@@ -16,24 +16,28 @@ locals {
     subnet_id      = b.subnet_id != null ? b.subnet_id : ""
     ami_id         = b.ami_id != null ? b.ami_id : ""
     tags           = merge(var.shared.tags, b.tags != null ? b.tags : {})
+    # authorized_keys are additive: shared keys (e.g. your laptop) on every box,
+    # plus any per-box keys.
+    ssh_authorized_keys = concat(var.shared.ssh_authorized_keys, b.ssh_authorized_keys != null ? b.ssh_authorized_keys : [])
   } }
 }
 
 module "primary" {
   source    = "../../modules/box"
   for_each  = { for name, b in local.boxes : name => b if b.target == "primary" }
-  providers = { aws = aws.primary, tls = tls }
+  providers = { aws = aws.primary }
 
-  box_name       = each.key
-  vanity_domain  = each.value.vanity_domain
-  agents         = each.value.agents
-  instance_type  = each.value.instance_type
-  root_volume_gb = each.value.root_volume_gb
-  projects       = each.value.projects
-  vpc_id         = each.value.vpc_id
-  subnet_id      = each.value.subnet_id
-  ami_id         = each.value.ami_id
-  tags           = each.value.tags
+  box_name            = each.key
+  vanity_domain       = each.value.vanity_domain
+  agents              = each.value.agents
+  instance_type       = each.value.instance_type
+  root_volume_gb      = each.value.root_volume_gb
+  projects            = each.value.projects
+  vpc_id              = each.value.vpc_id
+  subnet_id           = each.value.subnet_id
+  ami_id              = each.value.ami_id
+  tags                = each.value.tags
+  ssh_authorized_keys = each.value.ssh_authorized_keys
 
   repo_url            = var.shared.repo_url
   repo_ref            = var.shared.repo_ref
@@ -51,6 +55,6 @@ module "primary" {
 # module "secondary" {
 #   source    = "../../modules/box"
 #   for_each  = { for name, b in local.boxes : name => b if b.target == "secondary" }
-#   providers = { aws = aws.secondary, tls = tls }
+#   providers = { aws = aws.secondary }
 #   ... identical argument list ...
 # }

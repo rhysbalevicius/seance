@@ -53,16 +53,16 @@ systemctl stop nginx 2>/dev/null || true
 echo "[nuke] remove homes, projects and worktrees"
 rm -rf /home/* /srv/projects /srv/worktrees /opt/seance
 
-# The public half of the box's EC2 key pair is not a secret of yours, and it is
-# the only way back in once the tailnet identity is gone. Put it back.
-if [[ -s /etc/seance/ssh_authorized_key ]]; then
-  echo "[nuke] restore break-glass authorized_keys"
+# Your authorized SSH public keys are not secret, and they are the way back in
+# once a re-provision rejoins the tailnet. Put them back for dev and ubuntu.
+if [[ -s /etc/seance/ssh_authorized_keys ]]; then
+  echo "[nuke] restore authorized_keys"
   for u in ubuntu dev; do
     id "$u" >/dev/null 2>&1 || continue
     h="$(getent passwd "$u" | cut -d: -f6)"
     [[ -n "$h" ]] || continue
     install -d -m 0700 -o "$u" -g "$u" "$h/.ssh"
-    install -m 0600 -o "$u" -g "$u" /etc/seance/ssh_authorized_key "$h/.ssh/authorized_keys"
+    install -m 0600 -o "$u" -g "$u" /etc/seance/ssh_authorized_keys "$h/.ssh/authorized_keys"
     echo "  $h/.ssh/authorized_keys"
   done
 fi

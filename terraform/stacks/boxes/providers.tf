@@ -32,5 +32,3 @@ provider "aws" {
 #     tags = { project = "seance" }
 #   }
 # }
-
-provider "tls" {}

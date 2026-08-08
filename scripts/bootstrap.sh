@@ -105,18 +105,20 @@ mkdir -p "$DEV_HOME/.aws"
 cp /root/.aws/config "$DEV_HOME/.aws/config"
 chown -R "$DEV_USER:$DEV_USER" "$DEV_HOME/.aws"
 
-# The box's EC2 key pair reaches the dev user too, so `ssh -i` lands where the
-# work is rather than on the AMI's default account. Written by user-data;
-# absent on boxes provisioned before key pairs existed.
-if [[ -s /etc/seance/ssh_authorized_key ]]; then
+# Your SSH keys (from tfvars via user-data) go on the dev user, so you reach
+# the box as dev over the tailnet. Appended, not clobbered, so a key you added
+# by hand on the box survives a re-provision.
+if [[ -s /etc/seance/ssh_authorized_keys ]]; then
   log "authorized_keys for $DEV_USER"
   install -d -m 0700 -o "$DEV_USER" -g "$DEV_USER" "$DEV_HOME/.ssh"
-  touch "$DEV_HOME/.ssh/authorized_keys"
-  if ! grep -qxFf /etc/seance/ssh_authorized_key "$DEV_HOME/.ssh/authorized_keys"; then
-    cat /etc/seance/ssh_authorized_key >> "$DEV_HOME/.ssh/authorized_keys"
-  fi
-  chown "$DEV_USER:$DEV_USER" "$DEV_HOME/.ssh/authorized_keys"
-  chmod 0600 "$DEV_HOME/.ssh/authorized_keys"
+  ak="$DEV_HOME/.ssh/authorized_keys"
+  touch "$ak"
+  while IFS= read -r key; do
+    [[ -n "$key" ]] || continue
+    grep -qxF "$key" "$ak" || echo "$key" >> "$ak"
+  done < /etc/seance/ssh_authorized_keys
+  chown "$DEV_USER:$DEV_USER" "$ak"
+  chmod 0600 "$ak"
 fi
 
 # --- Tailscale --------------------------------------------------------------
@@ -129,9 +131,12 @@ if ! tailscale status >/dev/null 2>&1; then
   TS_AUTHKEY="$(get_secret tailscale-authkey)"
   if [[ -n "$TS_AUTHKEY" ]]; then
     log "tailscale up"
-    tailscale up --authkey "$TS_AUTHKEY" --ssh --hostname "$SEANCE_NAME"
+    # No --ssh: access is conventional key-based SSH over the tailnet, against
+    # the keys in the dev user's authorized_keys. Tailscale SSH would intercept
+    # tailnet :22 and bypass those keys.
+    tailscale up --authkey "$TS_AUTHKEY" --hostname "$SEANCE_NAME"
   else
-    log "WARNING: no $SECRETS/tailscale-authkey; run 'tailscale up --ssh' manually"
+    log "WARNING: no $SECRETS/tailscale-authkey; run 'tailscale up' manually"
   fi
 fi
 

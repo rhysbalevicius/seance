@@ -1,6 +1,6 @@
 # seance
 
-An always-on EC2 box for running Claude Code and other agent CLIs remotely. Access is Tailscale-only (Tailscale SSH, no inbound ports). Credentials live sops-encrypted in a central "sanctum" AWS account, so neither terraform state nor a box's user-data holds anything sensitive.
+Remote agentic development environments.
 
 ```
    sanctum AWS account                    target AWS account
@@ -20,7 +20,7 @@ An always-on EC2 box for running Claude Code and other agent CLIs remotely. Acce
 ## Layout
 
 ```
-terraform/modules/box/     one box: EC2 + zero-ingress SG + key pair + cloud-init shim
+terraform/modules/box/     one box: EC2 + zero-ingress SG + cloud-init shim
 terraform/modules/sanctum/   artifacts bucket, secrets bucket, KMS key, cross-account role
 terraform/stacks/sanctum/    root, applied once in the sanctum account
 terraform/stacks/boxes/    root, every box across every account, one state
@@ -71,7 +71,6 @@ cd terraform/stacks/sanctum && terraform apply
 ```bash
 cd terraform/stacks/boxes
 cp terraform.tfvars.example terraform.tfvars   # sanctum outputs + repo URL + the boxes map
-terraform init && terraform apply
 ```
 
 tfvars has two sections. `shared` is the defaults every box inherits; `boxes` is one entry per box, keyed by hostname, overriding `shared`:
@@ -83,23 +82,22 @@ boxes = {
 }
 ```
 
-Adding a box in a wired account is those two lines. Adding an account or region takes three edits, because Terraform can't `for_each` a provider: a `provider` alias in `providers.tf`, a `module` block in `main.tf`, and a `merge()` entry in `outputs.tf`, all marked `TARGETS`. The `target` validation fails the plan if you name an unwired alias.
-
-`user_data`, `ami`, `subnet_id` and `key_name` are in `ignore_changes`, so a routine apply won't replace a box (a replacement destroys the root volume). Force a rebuild with `terraform taint 'module.primary["agent1"].aws_instance.box'`.
-
-Each box gets an EC2 key pair. Save the private half:
+SSH keys are yours — generate one per box and put the public half in that box's `ssh_authorized_keys` (or `shared.ssh_authorized_keys` for a key on every box). Nothing is generated in AWS:
 
 ```bash
-terraform output -json ssh_private_keys | jq -r '."agent1"' > ~/.ssh/seance-agent1
-chmod 600 ~/.ssh/seance-agent1
+ssh-keygen -t ed25519 -f ~/.ssh/seance-agent1
+# paste ~/.ssh/seance-agent1.pub into agent1's ssh_authorized_keys, then:
+terraform init && terraform apply
 ```
 
-The SG has no ingress, so this key is not a live door — it's for reaching the root volume via a rescue instance if the tailnet is unreachable. `seance-nuke` reinstalls it after a wipe.
+Adding a box in a wired account is those two lines. Adding an account or region takes three edits, because Terraform can't `for_each` a provider: a `provider` alias in `providers.tf`, a `module` block in `main.tf`, and a `merge()` entry in `outputs.tf`, all marked `TARGETS`. The `target` validation fails the plan if you name an unwired alias.
+
+`user_data`, `ami` and `subnet_id` are in `ignore_changes`, so a routine apply won't replace a box (a replacement destroys the root volume). Force a rebuild with `terraform taint 'module.primary["agent1"].aws_instance.box'`.
 
 Boot runs `scripts/bootstrap.sh`: Docker, Node 22, AWS CLI v2, sops, secrets pull, the agent CLIs, herdr, Playwright + Chromium, Tailscale, nginx + private-CA cert, git identities, project clones. Then:
 
 ```bash
-ssh dev@agent1                        # Tailscale SSH
+ssh -i ~/.ssh/seance-agent1 dev@agent1   # over the tailnet
 tail -f /var/log/seance-bootstrap.log
 cat /var/lib/seance/bootstrapped      # exists when bootstrap finished
 seance-secrets status
@@ -170,7 +168,7 @@ Re-provision after editing this repo: `cd /opt/seance && sudo git pull && sudo s
 ## Security notes
 
 - No inbound: the SG has no ingress rules; the vanity DNS records point at a 100.64/10 Tailscale address only your tailnet routes.
-- The EC2 key pair is recovery-only — with no ingress there's nothing to connect to. It's for mounting the root volume elsewhere if the tailnet is down. An Instance Connect Endpoint would keep the zero-ingress property; an `emergency_ssh_cidr` rule would not.
+- SSH keys are yours, generated off-box; only the public half reaches AWS (via user_data), never a private key. Access is key-based SSH to the box's tailnet address — nothing is reachable from outside the tailnet. If the tailnet itself is down, recovery is attaching the root volume to a rescue instance (editing the disk directly), since there's no ingress path in.
 - No static AWS keys. The instance role can only assume the sanctum role; that role can only push artifacts, read the secrets, and decrypt them. A compromised box can read every box's artifacts and the shared secrets (the role has no per-box condition), nothing else.
 - Credentials are ciphertext everywhere outside the box: repo tree, terraform state, S3, transit. Plaintext exists only in your editor during a sops session and on the box's encrypted EBS volume.
 - `ExternalId` blocks confused-deputy assumption from an unexpected principal in a trusted account. It does not restrict which principal inside that account can assume the role.
