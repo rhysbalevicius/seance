@@ -12,7 +12,7 @@
 
 provider "aws" {
   alias  = "primary"
-  region = "eu-north-1"
+  region = "us-east-1"
 
   default_tags {
     tags = { project = "seance" }
