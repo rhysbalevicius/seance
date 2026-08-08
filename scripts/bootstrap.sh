@@ -254,13 +254,24 @@ fi
 # --- Helper commands on PATH ------------------------------------------------
 
 log "helpers"
-for s in expose.sh screenshot.sh push-artifact.sh secrets.sh fetch-secrets.sh clone-projects.sh worktree.sh setup-project.sh ca.sh agents.sh nuke.sh; do
+for s in expose.sh screenshot.sh push-artifact.sh secrets.sh fetch-secrets.sh clone-projects.sh worktree.sh setup-project.sh ca.sh agents.sh collie.sh nuke.sh; do
   install -m 0755 "$REPO_DIR/scripts/$s" "/usr/local/bin/seance-${s%.sh}"
 done
 mkdir -p /etc/seance
 install -m 0644 "$REPO_DIR/config/setup-project.prompt.md" /etc/seance/setup-project.prompt.md
 mkdir -p /srv/worktrees && chown "$DEV_USER:$DEV_USER" /srv/worktrees
 chmod 0600 /etc/seance/nuke.sha256 2>/dev/null || true
+
+# --- collie: phone UI for herdr, at collie.$VANITY_DOMAIN -------------------
+# Needs nginx (vanity block above), herdr, and seance-expose (just installed),
+# so it runs here. Non-fatal: a first-boot herdr/systemd hiccup shouldn't fail
+# the whole provision -- re-runnable by hand as 'sudo seance-collie'.
+
+if [[ -n "${VANITY_DOMAIN:-}" ]]; then
+  log "collie"
+  /usr/local/bin/seance-collie || \
+    log "WARNING: collie setup failed; run 'sudo seance-collie' after first 'herdr' login"
+fi
 
 # --- Projects ---------------------------------------------------------------
 # /etc/seance/projects.json lists repos to clone. Repo URLs are not secret;

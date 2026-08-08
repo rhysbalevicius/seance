@@ -1,6 +1,6 @@
 # seance
 
-Remote agentic development environments.
+An always-on EC2 box for running Claude Code and other agent CLIs remotely. Access is over the tailnet only — key-based SSH, no inbound ports. Credentials live sops-encrypted in a central "sanctum" AWS account, so neither terraform state nor a box's user-data holds anything sensitive.
 
 ```
    sanctum AWS account                    target AWS account
@@ -161,9 +161,12 @@ One herdr pane per worktree. Preview two at once: `seance-expose add pricing 300
 | `seance-fetch-secrets` | refresh the dev shell env after a pull |
 | `seance-clone-projects` | clone newly added repos (existing clones untouched) |
 | `seance-ca status/root` / `sudo seance-ca ensure` | cert + DNS info; print root; (re)issue |
+| `sudo seance-collie` | (re)install the [collie](https://github.com/AltanS/collie) phone UI for herdr and expose it at `collie.<vanity_domain>` |
 | `sudo seance-nuke` | passphrase-gated wipe: secrets, CA, deploy keys, homes, worktrees, projects, Docker, tailnet identity; box stays up |
 
 Re-provision after editing this repo: `cd /opt/seance && sudo git pull && sudo scripts/bootstrap.sh`.
+
+**Phone access (collie).** When a vanity domain is set, bootstrap installs [collie](https://github.com/AltanS/collie) — a PWA for driving herds from your phone — and serves it at `collie.<vanity_domain>` (trust the box CA on the phone first: `seance-ca root`). Behind nginx it runs with **no auth**: its identity gate needs `tailscale serve`, which this doesn't use, so anyone on your tailnet who reaches the URL gets a full shell on the box. Fine for a solo tailnet; on a shared one, drop it (`herdr plugin action invoke stop --plugin herdr.collie` + `seance-expose rm collie`) and serve it via `tailscale serve` instead. Re-run setup any time with `sudo seance-collie`.
 
 ## Security notes
 
