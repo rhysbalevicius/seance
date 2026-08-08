@@ -1,0 +1,148 @@
+# One box. The calling stack supplies the provider, so the account and region
+# this lands in are decided there, not here.
+#
+# Nothing in this module is a secret. Credentials live sops-encrypted in the
+# sanctum account's secrets bucket and are fetched by the box at first boot, so
+# user_data -- readable by anyone with EC2 read access in the target account --
+# carries only the configuration below.
+
+# --- Identity ---------------------------------------------------------------
+
+variable "box_name" {
+  description = "Hostname for the box; also its Tailscale machine name, its key pair name, and the name of its optional per-box secrets overlay."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,35}[a-z0-9])?$", var.box_name))
+    error_message = "box_name must be a DNS label of at most 37 characters: lowercase letters, digits and hyphens, not starting or ending with a hyphen. The cap is the IAM role name_prefix limit, which is 38 minus the hyphen."
+  }
+}
+
+# --- Sanctum-account wiring (from the sanctum stack's outputs) --------------
+
+variable "sanctum_role_arn" {
+  description = "Cross-account role in the sanctum account (sanctum_role_arn output)."
+  type        = string
+}
+
+variable "sanctum_bucket" {
+  description = "Artifacts bucket in the sanctum account (artifact_bucket output)."
+  type        = string
+}
+
+variable "secrets_bucket" {
+  description = "Secrets bucket in the sanctum account (secrets_bucket output). The box reads secrets/shared.sops.yaml and, if present, secrets/boxes/<box_name>.sops.yaml from it."
+  type        = string
+}
+
+variable "sanctum_region" {
+  description = "Region the sanctum stack was applied in."
+  type        = string
+}
+
+variable "sanctum_external_id" {
+  description = "ExternalId configured on the sanctum role."
+  type        = string
+}
+
+# --- Vanity hostnames (optional) --------------------------------------------
+
+variable "vanity_domain" {
+  description = <<-EOT
+    The box's subdomain, e.g. "agent1.example.com". Apps become <name>.agent1.example.com behind nginx with a wildcard cert from the box's private CA; agents mint new names on the fly (a vhost write, no DNS/cert step). Requires two one-time manual records at the registrar (A agent1 and A *.agent1 -> the box's Tailscale IP; bootstrap prints them) and trusting the box's root cert once per device. Empty = disabled; exposure falls back to `tailscale serve` on ts.net ports.
+  EOT
+  type        = string
+  default     = ""
+}
+
+# --- Bootstrap source -------------------------------------------------------
+
+variable "repo_url" {
+  description = <<-EOT
+    HTTPS clone URL of THIS repository. cloud-init clones it and runs scripts/bootstrap.sh, so the box always provisions from the committed version -- user-data stays a tiny shim and re-provisioning is 'git pull && sudo scripts/bootstrap.sh'.
+  EOT
+  type        = string
+}
+
+variable "repo_ref" {
+  description = "Branch or tag of the repo to provision from."
+  type        = string
+  default     = "main"
+}
+
+variable "sops_version" {
+  description = "sops release the box installs to decrypt its secrets. Pinned so provisioning is reproducible."
+  type        = string
+  default     = "v3.13.1"
+}
+
+# --- Projects ---------------------------------------------------------------
+
+variable "projects" {
+  description = <<-EOT
+    Repos to clone at bootstrap. url uses the gh-<profile> SSH alias, where <profile> matches a git_profiles entry in the secrets file. ref is optional (branch/tag). setup_hint is optional free text handed to the bootstrap agent session (seance-setup-project) -- anything a fresh clone needs that its README doesn't say. Repo URLs are not secret, so this rides in user_data rather than the secrets file.
+  EOT
+  type = list(object({
+    profile    = string
+    url        = string
+    dir        = string
+    ref        = optional(string)
+    setup_hint = optional(string)
+  }))
+  default = []
+}
+
+# --- Agents -----------------------------------------------------------------
+
+variable "agents" {
+  description = <<-EOT
+    Coding-agent CLIs to install at bootstrap. Known: claude (Claude Code), codex (OpenAI Codex CLI), cursor (Cursor CLI), gemini (Gemini CLI) -- scripts/agents.sh is the extension point for more. Installation is unauthenticated; each CLI's login is a one-time step per box (see README "Agent auth" -- including how Claude Code runs on the Max subscription rather than API credits).
+  EOT
+  type        = list(string)
+  default     = ["claude"]
+}
+
+# --- Shape ------------------------------------------------------------------
+
+variable "instance_type" {
+  description = "4 vCPU / 16 GB default; bump for faster Docker builds."
+  type        = string
+  default     = "m7i.xlarge"
+}
+
+variable "root_volume_gb" {
+  description = "Docker images, browser bundles and build caches add up fast."
+  type        = number
+  default     = 200
+}
+
+# --- Placement --------------------------------------------------------------
+# All three are pinned after first apply (see the ignore_changes block in
+# main.tf), so filling them in later has no effect on a running box -- taint
+# the instance if you actually want to move it.
+
+variable "vpc_id" {
+  description = "VPC to launch in. Empty string = the account's default VPC."
+  type        = string
+  default     = ""
+}
+
+variable "subnet_id" {
+  description = <<-EOT
+    Subnet to launch in. Empty string = the lowest-sorted subnet in the VPC, which is stable across applies but arbitrary; set this explicitly if the VPC has private subnets, because a box with no route out never reaches the tailnet and there is no other way in.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "ami_id" {
+  description = "AMI to launch. Empty string = the newest Canonical Ubuntu 24.04 image at first apply, pinned thereafter."
+  type        = string
+  default     = ""
+}
+
+variable "tags" {
+  description = "Extra tags merged onto every resource this module creates."
+  type        = map(string)
+  default     = {}
+}

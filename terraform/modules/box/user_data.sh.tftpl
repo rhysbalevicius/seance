@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# seance user-data shim. Deliberately tiny: writes non-secret config, clones the
+# repo, and hands off to scripts/bootstrap.sh from the committed tree. Every
+# credential the box needs is fetched from the sanctum account by bootstrap, so
+# nothing here is sensitive -- which matters, because user_data is readable by
+# anyone with EC2 read access in this account.
+set -euo pipefail
+exec > >(tee -a /var/log/seance-bootstrap.log) 2>&1
+
+echo "=== seance user-data $(date -u +%FT%TZ) ==="
+
+mkdir -p /etc/seance
+cat > /etc/seance/seance.env <<'EOF'
+SEANCE_NAME=${box_name}
+SANCTUM_ROLE_ARN=${sanctum_role_arn}
+SANCTUM_BUCKET=${sanctum_bucket}
+SANCTUM_REGION=${sanctum_region}
+SANCTUM_EXTERNAL_ID=${sanctum_external_id}
+SECRETS_BUCKET=${secrets_bucket}
+VANITY_DOMAIN=${vanity_domain}
+AGENTS="${agents}"
+SOPS_VERSION=${sops_version}
+EOF
+chmod 0644 /etc/seance/seance.env
+
+# Public half of the box's key pair. Bootstrap installs it for the dev user,
+# and the nuke restores it so break-glass access survives a wipe.
+echo '${ssh_public_key_b64}' | base64 -d > /etc/seance/ssh_authorized_key
+chmod 0644 /etc/seance/ssh_authorized_key
+
+# Repo URLs are not credentials; the deploy keys that reach them are, and those
+# come from the secrets bucket.
+echo '${projects_b64}' | base64 -d > /etc/seance/projects.json
+chmod 0644 /etc/seance/projects.json
+
+hostnamectl set-hostname "${box_name}"
+# Keep sudo from warning about an unresolvable host after the rename.
+grep -q " ${box_name}$" /etc/hosts || echo "127.0.1.1 ${box_name}" >> /etc/hosts
+
+export DEBIAN_FRONTEND=noninteractive
+# unattended-upgrades often holds the dpkg lock right after first boot
+APT="apt-get -o DPkg::Lock::Timeout=300"
+$APT update -y
+$APT install -y git
+
+rm -rf /opt/seance
+git clone --branch "${repo_ref}" --depth 1 "${repo_url}" /opt/seance
+
+bash /opt/seance/scripts/bootstrap.sh
+
+echo "=== seance user-data done $(date -u +%FT%TZ) ==="
