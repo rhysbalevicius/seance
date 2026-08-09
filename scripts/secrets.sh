@@ -49,6 +49,9 @@ pull() {
 
   jq -r '.tailscale_authkey      // empty' "$tmp/merged.json" > "$tmp/tailscale-authkey"
   jq -r '.desec_token            // empty' "$tmp/merged.json" > "$tmp/desec_token"
+  jq -r '.collie_vapid_public    // empty' "$tmp/merged.json" > "$tmp/collie_vapid_public"
+  jq -r '.collie_vapid_private   // empty' "$tmp/merged.json" > "$tmp/collie_vapid_private"
+  jq -r '.collie_vapid_subject   // empty' "$tmp/merged.json" > "$tmp/collie_vapid_subject"
   jq -r '.nuke_passphrase_sha256 // empty' "$tmp/merged.json" > "$tmp/nuke.sha256"
   jq -c '.git_profiles           // []'    "$tmp/merged.json" > "$tmp/git-profiles.json"
   # @sh shell-quotes each value, so a key containing spaces, quotes or $(...)
@@ -57,7 +60,7 @@ pull() {
     "$tmp/merged.json" > "$tmp/env"
 
   install -d -m 0700 "$SECRETS"
-  for f in tailscale-authkey desec_token env git-profiles.json; do
+  for f in tailscale-authkey desec_token collie_vapid_public collie_vapid_private collie_vapid_subject env git-profiles.json; do
     install -m 0600 "$tmp/$f" "$SECRETS/$f"
   done
   install -m 0600 "$tmp/nuke.sha256" /etc/seance/nuke.sha256
