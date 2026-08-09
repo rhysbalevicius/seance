@@ -48,6 +48,7 @@ pull() {
   jq -s '.[0] * .[1]' "$tmp/shared.json" "$tmp/box.json" > "$tmp/merged.json"
 
   jq -r '.tailscale_authkey      // empty' "$tmp/merged.json" > "$tmp/tailscale-authkey"
+  jq -r '.desec_token            // empty' "$tmp/merged.json" > "$tmp/desec_token"
   jq -r '.nuke_passphrase_sha256 // empty' "$tmp/merged.json" > "$tmp/nuke.sha256"
   jq -c '.git_profiles           // []'    "$tmp/merged.json" > "$tmp/git-profiles.json"
   # @sh shell-quotes each value, so a key containing spaces, quotes or $(...)
@@ -56,14 +57,14 @@ pull() {
     "$tmp/merged.json" > "$tmp/env"
 
   install -d -m 0700 "$SECRETS"
-  for f in tailscale-authkey env git-profiles.json; do
+  for f in tailscale-authkey desec_token env git-profiles.json; do
     install -m 0600 "$tmp/$f" "$SECRETS/$f"
   done
   install -m 0600 "$tmp/nuke.sha256" /etc/seance/nuke.sha256
   date -u +%FT%TZ > "$STAMP"
   chmod 0600 "$STAMP"
 
-  echo "[secrets] wrote $SECRETS/{tailscale-authkey,env,git-profiles.json} + /etc/seance/nuke.sha256"
+  echo "[secrets] wrote $SECRETS/{tailscale-authkey,desec_token,env,git-profiles.json} + /etc/seance/nuke.sha256"
   echo "[secrets] refresh the dev shell env with: seance-fetch-secrets"
 }
 
@@ -77,7 +78,7 @@ status() {
   else
     echo "last pull:      never"
   fi
-  for f in tailscale-authkey env git-profiles.json; do
+  for f in tailscale-authkey desec_token env git-profiles.json; do
     if [[ -s "$SECRETS/$f" ]]; then
       echo "  $f: present"
     elif [[ $EUID -ne 0 ]]; then
