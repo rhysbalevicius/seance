@@ -9,7 +9,7 @@ An always-on EC2 box for running Claude Code and other agent CLIs remotely. Acce
  │ S3 secrets (sops + KMS)  │◄───┤ instance role ──assume──►        │
  │ IAM role seance-access   │STS │ SG: no ingress, all egress       │
  └──────────────────────────┘    │ secrets: /etc/seance/secrets/*   │
-                                 │ tailscaled · nginx · private CA  │
+                                 │ tailscaled · nginx · certbot/CA  │
    registrar (one-time):         │ herdr · claude · playwright      │
    A agent1   -> 100.x.y.z       └────────────────┬─────────────────┘
    A *.agent1 -> 100.x.y.z                        │ tailnet (WireGuard)
@@ -107,10 +107,14 @@ seance-secrets status
 
 ### Vanity hostnames
 
-Apps get `<name>.agent1.example.com` behind nginx, with a wildcard cert from a private CA on the box. Two one-time steps:
+Apps get `<name>.agent1.example.com` behind nginx, covered by one wildcard cert. Two one-time steps — DNS, then TLS.
 
-1. DNS: `seance-ca status` prints the box's Tailscale IP. At your registrar, add `A agent1` and `A *.agent1` pointing at it. Stable for the node's lifetime.
-2. Trust: `ssh dev@agent1 seance-ca root > seance-root.crt`, then import — macOS: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain seance-root.crt`; iOS: AirDrop, install, enable in Certificate Trust Settings.
+**DNS.** `seance-ca status` prints the box's Tailscale IP (a 100.64/10 address). Point `agent1.example.com` and `*.agent1.example.com` at it, stable for the node's lifetime. A nested wildcard like `*.agent1` isn't accepted by every registrar (Namecheap, for one); if yours won't take it, add a record per hostname or delegate the subdomain to a DNS host that does.
+
+**TLS.** Two ways, picked automatically by whether `desec_token` is set in secrets:
+
+- **Let's Encrypt wildcard (recommended).** With a `desec_token`, `sudo seance-cert ensure` issues a real, publicly-trusted wildcard for `agent1.example.com` + `*.agent1.example.com` over the DNS-01 challenge and auto-renews it (systemd timer) — nothing to install on your devices. DNS-01 needs an API-driven DNS provider; [deSEC](https://desec.io) is free and is what the token is for. Delegate the subdomain to deSEC once: create the domain `agent1.example.com` in deSEC, add its nameservers as `NS agent1` records at your registrar, and keep the `A`/`*` records in deSEC.
+- **Private CA (fallback).** With no token, `seance-cert` mints a self-signed CA + wildcard leaf. Trust its root once per device: `ssh dev@agent1 sudo seance-ca root > seance-root.crt`, then import — macOS: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain seance-root.crt`; iOS: AirDrop, install, enable in Certificate Trust Settings.
 
 Then `seance-expose add <name> <port>` serves an app immediately. Without a vanity domain, exposure falls back to `tailscale serve`.
 
@@ -162,13 +166,14 @@ One herdr pane per worktree. Preview two at once: `seance-expose add pricing 300
 | `sudo seance-secrets pull` / `seance-secrets status` | re-fetch and decrypt credentials after a rotation |
 | `seance-fetch-secrets` | refresh the dev shell env after a pull |
 | `seance-clone-projects` | clone newly added repos (existing clones untouched) |
-| `seance-ca status/root` / `sudo seance-ca ensure` | cert + DNS info; print root; (re)issue |
+| `sudo seance-cert ensure` / `seance-cert status` | (re)issue TLS: Let's Encrypt wildcard when `desec_token` is set, else private CA; shows mode + expiry |
+| `seance-ca status/root` / `sudo seance-ca ensure` | private-CA fallback: prints box IP + DNS records and the root to trust; (re)issue |
 | `sudo seance-collie` | (re)install the [collie](https://github.com/AltanS/collie) phone UI for herdr and expose it at `collie.<vanity_domain>` |
 | `sudo seance-nuke` | passphrase-gated wipe: secrets, CA, deploy keys, homes, worktrees, projects, Docker, tailnet identity; box stays up |
 
 Re-provision after editing this repo: `cd /opt/seance && sudo git pull && sudo scripts/bootstrap.sh`.
 
-**Phone access (collie).** When a vanity domain is set, bootstrap installs [collie](https://github.com/AltanS/collie) — a PWA for driving herds from your phone — and serves it at `collie.<vanity_domain>` (trust the box CA on the phone first: `seance-ca root`). Behind nginx it runs with **no auth**: its identity gate needs `tailscale serve`, which this doesn't use, so anyone on your tailnet who reaches the URL gets a full shell on the box. Fine for a solo tailnet; on a shared one, drop it (`herdr plugin action invoke stop --plugin herdr.collie` + `seance-expose rm collie`) and serve it via `tailscale serve` instead. Re-run setup any time with `sudo seance-collie`.
+**Phone access (collie).** When a vanity domain is set, bootstrap installs [collie](https://github.com/AltanS/collie) — a PWA for driving herds from your phone — and serves it at `collie.<vanity_domain>` (publicly trusted with a `desec_token`; on the private-CA fallback, trust the root on the phone first: `sudo seance-ca root`). Behind nginx it runs with **no auth**: its identity gate needs `tailscale serve`, which this doesn't use, so anyone on your tailnet who reaches the URL gets a full shell on the box. Fine for a solo tailnet; on a shared one, drop it (`herdr plugin action invoke stop --plugin herdr.collie` + `seance-expose rm collie`) and serve it via `tailscale serve` instead. Re-run setup any time with `sudo seance-collie`.
 
 ## Security notes
 
@@ -178,10 +183,10 @@ Re-provision after editing this repo: `cd /opt/seance && sudo git pull && sudo s
 - Credentials are ciphertext everywhere outside the box: repo tree, terraform state, S3, transit. Plaintext exists only in your editor during a sops session and on the box's encrypted EBS volume.
 - `ExternalId` blocks confused-deputy assumption from an unexpected principal in a trusted account. It does not restrict which principal inside that account can assume the role.
 - On the box, decrypted secrets are root-only files, readable by the sudo-capable agent. Volume encryption, not `shred`, protects them at rest.
-- The private CA root key never leaves the box. Nuking shreds it, so a rebuilt box needs re-trusting.
+- With a `desec_token` the box serves a real Let's Encrypt wildcard (auto-renewing), so there's no device trust step. Without one it falls back to a private CA whose root key never leaves the box; nuking shreds it, so a rebuilt box needs re-trusting.
 - The nuke passphrase stops an accidental trigger, not a determined process: the dev user has passwordless sudo.
 - Agents have unrestricted egress. API-key spend caps are the backstop.
 
 ## Teardown
 
-Drop a box: remove its `boxes` entry and apply, or `terraform destroy -target='module.primary["agent1"]'`; then remove it from the Tailscale console. The sanctum stack stays. Wipe a box but keep it running: `sudo seance-nuke`, then re-provision with `git clone <repo> /opt/seance && sudo /opt/seance/scripts/bootstrap.sh` — it re-pulls the secrets and rejoins the tailnet, and mints a new CA root that devices must re-trust.
+Drop a box: remove its `boxes` entry and apply, or `terraform destroy -target='module.primary["agent1"]'`; then remove it from the Tailscale console. The sanctum stack stays. Wipe a box but keep it running: `sudo seance-nuke`, then re-provision with `git clone <repo> /opt/seance && sudo /opt/seance/scripts/bootstrap.sh` — it re-pulls the secrets and rejoins the tailnet. On the private-CA fallback it mints a new root that devices must re-trust; with a `desec_token` the Let's Encrypt cert just re-issues, nothing to re-trust.
