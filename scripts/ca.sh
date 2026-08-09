@@ -4,9 +4,13 @@
 # platforms reject TLS server certs over 825 days regardless of trust root).
 # nginx serves the leaf; you trust the root once per device.
 #
+# This is the fallback path: seance-cert calls it when no deSEC token is set.
+# With a token you get a publicly-trusted Let's Encrypt wildcard instead and
+# never touch a device trust store -- see seance-cert.
+#
 # Usage:
 #   sudo seance-ca ensure    # create CA/leaf if missing or leaf <30d from expiry
-#   seance-ca root           # print the root cert PEM (pipe to a file, trust it)
+#   sudo seance-ca root      # print the root cert PEM (pipe to a file, trust it)
 #   seance-ca status         # expiry dates + the DNS records to set at the registrar
 set -euo pipefail
 source /etc/seance/seance.env
@@ -65,7 +69,7 @@ case "$cmd" in
     echo "  A  ${VANITY_DOMAIN%%.*}    ${ts_ip:-<tailscale ip>}"
     echo "  A  *.${VANITY_DOMAIN%%.*}  ${ts_ip:-<tailscale ip>}"
     echo
-    echo "trust the root on each device:  ssh ${SEANCE_USER:-dev}@$SEANCE_NAME seance-ca root > seance-root.crt"
+    echo "trust the root on each device:  ssh ${SEANCE_USER:-dev}@$SEANCE_NAME sudo seance-ca root > seance-root.crt"
     echo "  macOS: open Keychain Access, import, set 'Always Trust' (or:"
     echo "  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain seance-root.crt)"
     echo "  iOS: AirDrop the file, install profile, then Settings -> General -> About -> Certificate Trust Settings"

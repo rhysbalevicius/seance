@@ -221,18 +221,20 @@ npm install -g playwright >/dev/null
 playwright install-deps chromium >/dev/null 2>&1 || apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
 sudo -u "$DEV_USER" playwright install chromium >/dev/null
 
-# --- Vanity hostnames: nginx + private-CA wildcard cert ---------------------
-# One-time manual DNS at the registrar (A $VANITY_DOMAIN and A *.$VANITY_DOMAIN
-# -> this box's Tailscale IP; ca.sh prints the exact records), then any
+# --- Vanity hostnames: nginx + wildcard TLS ---------------------------------
+# One-time DNS at your DNS provider: A $VANITY_DOMAIN and A *.$VANITY_DOMAIN ->
+# this box's Tailscale IP (seance-ca status prints the IP). Then any
 # <name>.$VANITY_DOMAIN is live the moment nginx knows about it -- agents mint
-# preview hostnames on the fly (seance-expose add <name> <port>). TLS comes
-# from a CA generated here; trust its root once per device (seance-ca root).
+# preview hostnames on the fly (seance-expose add <name> <port>). TLS is set up
+# by seance-cert: a real Let's Encrypt wildcard over the deSEC DNS-01 challenge
+# when a desec_token secret is present (publicly trusted, auto-renewing), else a
+# self-signed private CA trusted once per device (seance-ca). See README.
 
 if [[ -n "${VANITY_DOMAIN:-}" ]]; then
   log "vanity domain: $VANITY_DOMAIN"
   apt-get install -y nginx openssl
 
-  "$REPO_DIR/scripts/ca.sh" ensure
+  "$REPO_DIR/scripts/cert.sh" ensure
 
   # nginx: exposed apps get vhosts in conf.d/seance-*.conf; everything else 444
   rm -f /etc/nginx/sites-enabled/default
@@ -257,7 +259,7 @@ fi
 # --- Helper commands on PATH ------------------------------------------------
 
 log "helpers"
-for s in expose.sh screenshot.sh push-artifact.sh secrets.sh fetch-secrets.sh clone-projects.sh worktree.sh setup-project.sh ca.sh agents.sh collie.sh nuke.sh; do
+for s in expose.sh screenshot.sh push-artifact.sh secrets.sh fetch-secrets.sh clone-projects.sh worktree.sh setup-project.sh ca.sh cert.sh agents.sh collie.sh nuke.sh; do
   install -m 0755 "$REPO_DIR/scripts/$s" "/usr/local/bin/seance-${s%.sh}"
 done
 mkdir -p /etc/seance

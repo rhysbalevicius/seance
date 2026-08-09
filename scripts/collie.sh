@@ -62,4 +62,4 @@ as_dev 'herdr plugin action invoke start --plugin herdr.collie' || \
   echo "[collie] WARNING: start failed; run 'herdr' once as $DEV_USER, then: sudo seance-collie"
 
 /usr/local/bin/seance-expose add collie "$PORT" >/dev/null
-echo "[collie] https://$HOSTN/  (tailnet-only; trust the box CA on the phone first: seance-ca root)"
+echo "[collie] https://$HOSTN/  (tailnet-only; with a deSEC token the cert is publicly trusted, else trust the box CA on the phone first: sudo seance-ca root)"
