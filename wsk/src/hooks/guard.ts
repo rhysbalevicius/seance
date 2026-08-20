@@ -67,7 +67,7 @@ function looksLikeCode(path: string): boolean {
   return CODE_SUFFIXES.some((s) => path.endsWith(s));
 }
 
-async function main(): Promise<void> {
+export async function runGuard(): Promise<void> {
   let input: HookInput;
   try {
     input = JSON.parse(await readStdin()) as HookInput;
@@ -137,5 +137,5 @@ async function main(): Promise<void> {
 // Only run when executed directly. Importing this module (in tests, or from
 // another entry point) must not consume stdin.
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  void main();
+  void runGuard();
 }

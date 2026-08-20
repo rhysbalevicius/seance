@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Entry point for the work-item tooling. Installed unprefixed because it is
+# typed constantly, unlike the seance-* provisioning commands.
+exec node /opt/seance/wsk/dist/cli/main.js "$@"

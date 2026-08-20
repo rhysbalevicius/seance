@@ -1,0 +1,9 @@
+[
+  {
+    "name": "rbzv",
+    "github_owner": "Deaglo",
+    "ledger": true,
+    "corpus": "extra/durable-execution/04-ISSUES.md",
+    "require_public_title": true
+  }
+]

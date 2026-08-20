@@ -264,6 +264,25 @@ for s in expose.sh screenshot.sh push-artifact.sh secrets.sh fetch-secrets.sh cl
 done
 mkdir -p /etc/seance
 install -m 0644 "$REPO_DIR/config/setup-project.prompt.md" /etc/seance/setup-project.prompt.md
+
+# Work-item tooling. Built here rather than committed, so the repository holds
+# no build output; a failure degrades wsk and leaves the rest of the box alone,
+# matching how agent installs are treated above.
+log "work-item tooling"
+install -d -m 0755 /etc/seance/style /etc/seance/templates /etc/seance/claude
+install -m 0644 "$REPO_DIR/config/style/"*        /etc/seance/style/
+install -m 0644 "$REPO_DIR/config/templates/"*    /etc/seance/templates/
+install -m 0644 "$REPO_DIR/config/claude/"*       /etc/seance/claude/
+[ -f /etc/seance/profiles.json ] || \
+  install -m 0644 "$REPO_DIR/config/profiles.example.json" /etc/seance/profiles.json
+if npm --prefix "$REPO_DIR/wsk" ci --no-audit --no-fund >/dev/null 2>&1 \
+   && npm --prefix "$REPO_DIR/wsk" run build >/dev/null 2>&1; then
+  install -m 0755 "$REPO_DIR/scripts/wsk" /usr/local/bin/wsk
+  sudo -u "$DEV_USER" /usr/local/bin/wsk install || \
+    log "WARNING: wsk could not fetch its helper binaries; run 'wsk install' later"
+else
+  log "WARNING: wsk build failed; the box is fine, but 'wsk' is unavailable"
+fi
 mkdir -p /srv/worktrees && chown "$DEV_USER:$DEV_USER" /srv/worktrees
 chmod 0600 /etc/seance/nuke.sha256 2>/dev/null || true
 
