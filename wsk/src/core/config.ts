@@ -24,7 +24,11 @@ const ProfileEntry = z.object({
   ledger: z.boolean().default(true),
   /** Path, relative to the profile root, of a ticket corpus to import. */
   corpus: z.string().nullable().optional(),
-  require_public_title: z.boolean().default(false),
+  /**
+   * Default true: an absent curated title would otherwise send the local one,
+   * which is an accidental leak channel. A profile may opt into inheritance.
+   */
+  require_public_title: z.boolean().default(true),
 });
 
 export interface Repo {
