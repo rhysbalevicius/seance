@@ -1,0 +1,24 @@
+{
+  "$comment": "Merged into a profile's .claude/settings.json by wsk init. Hooks are plain stdin-to-exit-code programs, so the same checks can move to a git hook later unchanged.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit",
+        "hooks": [{ "type": "command", "command": "wsk guard" }]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": ["Bash(wsk *)", "Bash(kata --workspace * --project * *)", "Bash(sqlite3 *)"],
+    "deny": [
+      "Bash(kata sync github*)",
+      "Bash(kata init*)",
+      "Bash(kata update*)",
+      "Bash(gh issue create*)",
+      "Bash(gh issue edit*)",
+      "Bash(gh issue comment*)",
+      "Bash(gh issue close*)",
+      "Bash(gh issue reopen*)"
+    ]
+  }
+}
