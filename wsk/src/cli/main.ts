@@ -15,6 +15,7 @@ const USAGE = `wsk — work items for a seance profile
   wsk install                          fetch and verify the helper binaries
   wsk init [<profile>]                 bring a workspace up: ledger, contract, settings
   wsk doctor [--profile <name>]        check the tooling is wired correctly
+  wsk issues import [--write]          load the profile corpus (dry run unless --write)
   wsk issues list   [--all]            list work items
   wsk issues status [--stale]          local versus published state
   wsk issues publish <ref>... | --all  publish curated items (dry run unless --yes)
@@ -241,6 +242,10 @@ async function main(): Promise<void> {
     const sub = argv.shift();
     const profile = pickProfile(argv);
     switch (sub) {
+      case "import": {
+        const { importCorpus } = await import("./import.js");
+        return importCorpus(profile, { dryRun: !takeFlag(argv, "--write"), forceBody: takeFlag(argv, "--force-body") });
+      }
       case "list": return issuesList(profile, argv);
       case "status": return issuesStatus(profile, argv);
       case "publish": return issuesPublish(profile, argv);

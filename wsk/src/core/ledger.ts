@@ -61,6 +61,19 @@ async function kata(profile: Profile, args: string[]): Promise<unknown> {
 const ListResult = z.object({ issues: z.array(KataIssue).default([]) });
 const IssueResult = z.object({ issue: KataIssue, changed: z.boolean().optional() });
 
+/** Links are returned beside the issue, not inside it. */
+const LinkEndpoint = z.object({ short_id: z.string(), uid: z.string() });
+const Link = z.object({ from: LinkEndpoint, to: LinkEndpoint, type: z.string() });
+const ShowResult = z.object({ issue: KataIssue, links: z.array(Link).default([]) });
+
+export interface IssueDetail {
+  readonly issue: KataIssue;
+  /** Short ids of issues that must finish before this one. */
+  readonly blockedBy: readonly string[];
+  /** Short ids of issues this one blocks. */
+  readonly blocks: readonly string[];
+}
+
 export interface ListOptions {
   /** open | closed | all */
   readonly status?: "open" | "closed" | "all";
@@ -79,7 +92,18 @@ export async function listIssues(profile: Profile, opts: ListOptions = {}): Prom
 }
 
 export async function showIssue(profile: Profile, ref: string): Promise<KataIssue> {
-  return IssueResult.parse(await kata(profile, ["show", ref])).issue;
+  return ShowResult.parse(await kata(profile, ["show", ref])).issue;
+}
+
+export async function showIssueDetail(profile: Profile, ref: string): Promise<IssueDetail> {
+  const parsed = ShowResult.parse(await kata(profile, ["show", ref]));
+  const me = parsed.issue.short_id;
+  const blocking = parsed.links.filter((l) => l.type === "blocks");
+  return {
+    issue: parsed.issue,
+    blockedBy: blocking.filter((l) => l.to.short_id === me).map((l) => l.from.short_id),
+    blocks: blocking.filter((l) => l.from.short_id === me).map((l) => l.to.short_id),
+  };
 }
 
 /** Look an issue up by its source id — the importer's idempotency key. */
