@@ -1,0 +1,29 @@
+{
+  "$comment": "Where a reference may appear. Code and commit messages must stand on their own; a pull request body is the one place an upstream issue reference belongs, and never an internal one.",
+  "rules": [
+    {
+      "id": "ledger-id",
+      "pattern": "\\b(?:DE|BUG|RD)-[0-9A-F]{2,}\\b",
+      "surfaces": ["code", "commit", "pr-body"],
+      "message": "internal work-item id; describe the change instead"
+    },
+    {
+      "id": "working-docs-path",
+      "pattern": "\\bextra/[A-Za-z0-9._/-]+",
+      "surfaces": ["code", "commit", "pr-body"],
+      "message": "path into uncommitted working documents; readers outside this box cannot follow it"
+    },
+    {
+      "id": "ledger-ref",
+      "pattern": "\\b(?:kata|wsk)#[0-9a-z]{4,}\\b",
+      "surfaces": ["code", "commit", "pr-body"],
+      "message": "internal ledger reference"
+    },
+    {
+      "id": "coauthor-trailer",
+      "pattern": "(?im)^Co-Authored-By:",
+      "surfaces": ["commit"],
+      "message": "co-author trailers are not used in these repositories"
+    }
+  ]
+}
