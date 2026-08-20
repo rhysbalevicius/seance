@@ -13,6 +13,7 @@ const run = promisify(execFile);
 const USAGE = `wsk — work items for a seance profile
 
   wsk install                          fetch and verify the helper binaries
+  wsk init [<profile>]                 bring a workspace up: ledger, contract, settings
   wsk doctor [--profile <name>]        check the tooling is wired correctly
   wsk issues list   [--all]            list work items
   wsk issues status [--stale]          local versus published state
@@ -226,6 +227,12 @@ async function main(): Promise<void> {
   if (command === "install") {
     const { installPins } = await import("./install.js");
     return installPins();
+  }
+
+  if (command === "init") {
+    const { initAll } = await import("./init.js");
+    const named = takeOption(argv, "--profile") ?? argv.shift();
+    return initAll(named);
   }
 
   if (command === "doctor") return doctor(argv);
