@@ -12,6 +12,7 @@ locals {
     instance_type  = b.instance_type != null ? b.instance_type : var.shared.instance_type
     root_volume_gb = b.root_volume_gb != null ? b.root_volume_gb : var.shared.root_volume_gb
     projects       = b.projects != null ? b.projects : var.shared.projects
+    profiles       = b.profiles != null ? b.profiles : var.shared.profiles
     vpc_id         = b.vpc_id != null ? b.vpc_id : ""
     subnet_id      = b.subnet_id != null ? b.subnet_id : ""
     ami_id         = b.ami_id != null ? b.ami_id : ""
@@ -34,6 +35,7 @@ module "primary" {
   instance_type       = each.value.instance_type
   root_volume_gb      = each.value.root_volume_gb
   projects            = each.value.projects
+  profiles            = each.value.profiles
   vpc_id              = each.value.vpc_id
   subnet_id           = each.value.subnet_id
   ami_id              = each.value.ami_id

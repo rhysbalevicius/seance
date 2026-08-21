@@ -33,6 +33,15 @@ variable "shared" {
       ref        = optional(string)
       setup_hint = optional(string)
     })), [])
+    profiles = optional(list(object({
+      name                 = string
+      github_owner         = string
+      ledger               = optional(bool, true)
+      corpus               = optional(string)
+      require_public_title = optional(bool, true)
+      gh_command           = optional(string, "gh")
+      gh_config_dir        = optional(string)
+    })), [])
   })
 }
 
@@ -58,6 +67,15 @@ variable "boxes" {
       dir        = string
       ref        = optional(string)
       setup_hint = optional(string)
+    })))
+    profiles = optional(list(object({
+      name                 = string
+      github_owner         = string
+      ledger               = optional(bool, true)
+      corpus               = optional(string)
+      require_public_title = optional(bool, true)
+      gh_command           = optional(string, "gh")
+      gh_config_dir        = optional(string)
     })))
   }))
   default = {}

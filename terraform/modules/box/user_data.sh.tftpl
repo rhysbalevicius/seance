@@ -33,6 +33,7 @@ chmod 0644 /etc/seance/ssh_authorized_keys
 # Repo URLs are not credentials; the deploy keys that reach them are, and those
 # come from the secrets bucket.
 echo '${projects_b64}' | base64 -d > /etc/seance/projects.json
+echo '${profiles_b64}' | base64 -d > /etc/seance/profiles.json
 chmod 0644 /etc/seance/projects.json
 
 hostnamectl set-hostname "${box_name}"

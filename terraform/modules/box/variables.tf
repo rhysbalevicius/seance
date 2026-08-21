@@ -113,6 +113,27 @@ variable "projects" {
   default = []
 }
 
+variable "profiles" {
+  description = <<-EOT
+    Per-profile settings for the work-item tooling, keyed by name to a projects[].profile. github_owner is the organisation or account the profile's repos live under. Set ledger to false for a profile that should not get a work-item ledger. corpus optionally names a file, relative to the workspace root, holding tickets to import. require_public_title defaults to true so an item cannot be published under a title nobody curated; set it false only where inheriting the local title is acceptable. gh_command and gh_config_dir let a profile use its own client and its own credential store, so one profile's token can never reach another's repositories.
+  EOT
+  type = list(object({
+    name                 = string
+    github_owner         = string
+    ledger               = optional(bool, true)
+    corpus               = optional(string)
+    require_public_title = optional(bool, true)
+    gh_command           = optional(string, "gh")
+    gh_config_dir        = optional(string)
+  }))
+  default = []
+
+  validation {
+    condition     = length(distinct([for p in var.profiles : p.name])) == length(var.profiles)
+    error_message = "Each profile must be named once; a duplicate would make which settings apply ambiguous."
+  }
+}
+
 # --- Agents -----------------------------------------------------------------
 
 variable "agents" {

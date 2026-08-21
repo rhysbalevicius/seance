@@ -166,6 +166,7 @@ resource "aws_instance" "box" {
 
     ssh_authorized_keys_b64 = base64encode(join("\n", var.ssh_authorized_keys))
     projects_b64            = base64encode(jsonencode(var.projects))
+    profiles_b64            = base64encode(jsonencode(var.profiles))
   })
 
   lifecycle {

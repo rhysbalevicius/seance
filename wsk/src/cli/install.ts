@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -43,6 +43,13 @@ export const PINS: readonly Pin[] = [
     // The archive names the binary after the project; it is installed short.
     member: "git-spice",
   },
+  {
+    name: "gh",
+    version: "2.98.0",
+    url: "https://github.com/cli/cli/releases/download/v2.98.0/gh_2.98.0_linux_amd64.tar.gz",
+    sha256: "3b8ac6b30336802fc1a858d7c084e11cdf24ac1a761ca90b68022d7d729208de",
+    member: "gh_2.98.0_linux_amd64/bin/gh",
+  },
 ];
 
 const BIN_DIR = process.env["WSK_BIN_DIR"] ?? join(homedir(), ".local", "bin");
@@ -73,22 +80,31 @@ export async function installPins(pins: readonly Pin[] = PINS): Promise<void> {
 
     const archive = join(tmp, `${pin.name}.tar.gz`);
     writeFileSync(archive, bytes);
-    await run("tar", ["-xzf", archive, "-C", tmp, pin.member]);
-    const extracted = join(tmp, pin.member);
+    // Members are sometimes nested inside a versioned directory, so the path is
+    // taken as published and flattened here rather than assumed to be bare.
+    const depth = pin.member.split("/").length - 1;
+    await run("tar", [
+      "-xzf", archive, "-C", tmp,
+      ...(depth > 0 ? ["--strip-components", String(depth)] : []),
+      pin.member,
+    ]);
+    const extracted = join(tmp, basename(pin.member));
     chmodSync(extracted, 0o755);
     renameSync(extracted, target);
-    void 0;
     process.stdout.write(`installed ${target}\n`);
   }
 }
 
 async function versionMatches(bin: string, version: string): Promise<boolean> {
-  try {
-    const { stdout } = await run(bin, ["version"]);
-    return stdout.includes(version);
-  } catch {
-    return false;
+  for (const probe of [["version"], ["--version"]]) {
+    try {
+      const { stdout } = await run(bin, probe);
+      if (stdout.includes(version)) return true;
+    } catch {
+      // Try the next spelling; tools disagree about which one they accept.
+    }
   }
+  return false;
 }
 
 /** Record what is pinned, so an upgrade is a deliberate edit with a new digest. */
