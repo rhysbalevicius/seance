@@ -1,0 +1,11 @@
+{
+  "$comment": "Formatter per file type. `command` runs in the repository that owns the file. A tool that is not installed is reported as unavailable rather than treated as a pass, because silently skipping is how a style guide stops being one.",
+  "formatters": [
+    { "id": "prettier", "extensions": [".ts", ".tsx", ".js", ".jsx", ".json", ".css", ".scss", ".html", ".md", ".yaml", ".yml"],
+      "command": ["npx", "--no-install", "prettier", "--write"] },
+    { "id": "ruff", "extensions": [".py"], "command": ["ruff", "format"] },
+    { "id": "gofmt", "extensions": [".go"], "command": ["gofmt", "-w"] },
+    { "id": "terraform", "extensions": [".tf", ".tfvars"], "command": ["terraform", "fmt"] },
+    { "id": "shfmt", "extensions": [".sh"], "command": ["shfmt", "-w"] }
+  ]
+}

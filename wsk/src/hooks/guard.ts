@@ -134,6 +134,31 @@ export async function runGuard(): Promise<void> {
   process.exit(ALLOW);
 }
 
+/**
+ * Runs after a write rather than before it, so formatting never blocks work.
+ * A formatter that is missing or unhappy is reported and ignored: refusing an
+ * edit because a tool is absent would be a worse failure than an unformatted
+ * file.
+ */
+export async function runFormatHook(): Promise<void> {
+  let input: HookInput;
+  try {
+    input = JSON.parse(await readStdin()) as HookInput;
+  } catch {
+    process.exit(ALLOW);
+  }
+  const raw = input.tool_input?.["file_path"];
+  const path = typeof raw === "string" ? raw : "";
+  if (path === "") process.exit(ALLOW);
+
+  const { formatFile } = await import("../core/format.js");
+  const result = await formatFile(path);
+  if (result.kind === "unavailable" || result.kind === "failed") {
+    process.stderr.write(`wsk: ${path} was not formatted \u2014 ${result.detail}\n`);
+  }
+  process.exit(ALLOW);
+}
+
 // Only run when executed directly. Importing this module (in tests, or from
 // another entry point) must not consume stdin.
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

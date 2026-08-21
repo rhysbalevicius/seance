@@ -4,12 +4,32 @@
     "PreToolUse": [
       {
         "matcher": "Bash|Write|Edit|MultiEdit",
-        "hooks": [{ "type": "command", "command": "wsk guard" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsk guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsk format-hook"
+          }
+        ]
       }
     ]
   },
   "permissions": {
-    "allow": ["Bash(wsk *)", "Bash(kata --workspace * --project * *)", "Bash(sqlite3 *)"],
+    "allow": [
+      "Bash(wsk *)",
+      "Bash(kata --workspace * --project * *)",
+      "Bash(sqlite3 *)"
+    ],
     "deny": [
       "Bash(kata sync github*)",
       "Bash(kata init*)",

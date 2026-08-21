@@ -15,6 +15,7 @@ const run = promisify(execFile);
 const USAGE = `wsk — work items for a seance profile
 
   wsk install                          fetch and verify the helper binaries
+  wsk fmt <file>...                    format files with each repository's own tools
   wsk init [<profile>]                 bring a workspace up: ledger, contract, settings
   wsk doctor [--profile <name>]        check the tooling is wired correctly
   wsk issues import [--write]          load the profile corpus (dry run unless --write)
@@ -242,6 +243,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "format-hook") {
+    await import("../hooks/guard.js").then((m) => m.runFormatHook());
+    return;
+  }
+
   if (command === "install") {
     const { installPins } = await import("./install.js");
     return installPins();
@@ -251,6 +257,20 @@ async function main(): Promise<void> {
     const { initAll } = await import("./init.js");
     const named = takeOption(argv, "--profile") ?? argv.shift();
     return initAll(named);
+  }
+
+  if (command === "fmt") {
+    const { formatFile, describeFormat } = await import("../core/format.js");
+    const files = argv.filter((a) => !a.startsWith("-"));
+    if (files.length === 0) fail("name the files to format");
+    let bad = 0;
+    for (const f of files) {
+      const r = await formatFile(f);
+      if (r.kind === "failed" || r.kind === "unavailable") bad++;
+      process.stdout.write(describeFormat(f, r) + "\n");
+    }
+    if (bad > 0) process.exit(1);
+    return;
   }
 
   if (command === "doctor") return doctor(argv);
