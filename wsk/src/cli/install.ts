@@ -35,6 +35,14 @@ export const PINS: readonly Pin[] = [
     sha256: "931c8cde1ceb05b0cfbed3689a4210f4ce8a5dc5c3f6496f56c89a6bcf260a61",
     member: "kata",
   },
+  {
+    name: "gs",
+    version: "0.31.2",
+    url: "https://github.com/abhinav/git-spice/releases/download/v0.31.2/git-spice.Linux-x86_64.tar.gz",
+    sha256: "4fbaffe8b6f69d1effce3bc3050083748ee8765b71fd928a966ad480b2d5d4f0",
+    // The archive names the binary after the project; it is installed short.
+    member: "git-spice",
+  },
 ];
 
 const BIN_DIR = process.env["WSK_BIN_DIR"] ?? join(homedir(), ".local", "bin");
@@ -69,6 +77,7 @@ export async function installPins(pins: readonly Pin[] = PINS): Promise<void> {
     const extracted = join(tmp, pin.member);
     chmodSync(extracted, 0o755);
     renameSync(extracted, target);
+    void 0;
     process.stdout.write(`installed ${target}\n`);
   }
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Profile } from "./config.js";
 import * as gh from "./gh.js";
+import type { GhContext } from "./gh.js";
 import { addComment, metaNumber, metaString, setMeta } from "./ledger.js";
 import { footerFor, markerFor, toPublicView } from "./publicview.js";
 import {
@@ -19,6 +20,10 @@ import {
  * for private text, so the redaction guarantee is carried by the type system
  * rather than by review.
  */
+
+export function ghContextFor(profile: Profile): GhContext {
+  return { command: profile.ghCommand, configDir: profile.ghConfigDir };
+}
 
 export function buildPayload(view: PublicView): GhIssuePayload {
   const payload: GhIssuePayload = {
@@ -74,7 +79,7 @@ export async function publishIssue(
     if (opts.dryRun) {
       return { kind: "would-update", repo: view.targetRepo, number: existing, payload };
     }
-    await gh.updateIssue(view.targetRepo, existing, payload);
+    await gh.updateIssue(view.targetRepo, existing, payload, ghContextFor(profile));
     await recordPublication(profile, issue.short_id, view, existing, undefined, hash);
     return { kind: "updated", repo: view.targetRepo, number: existing };
   }
@@ -85,14 +90,14 @@ export async function publishIssue(
 
   // Adopt an orphan before creating, so a crash between the POST and the
   // metadata write cannot produce a duplicate on the next run.
-  const orphan = await gh.findByMarker(view.targetRepo, markerFor(view.srcId));
+  const orphan = await gh.findByMarker(view.targetRepo, markerFor(view.srcId), ghContextFor(profile));
   if (orphan !== undefined) {
-    const updated = await gh.updateIssue(view.targetRepo, orphan, payload);
+    const updated = await gh.updateIssue(view.targetRepo, orphan, payload, ghContextFor(profile));
     await recordPublication(profile, issue.short_id, view, orphan, updated.html_url, hash);
     return { kind: "adopted", repo: view.targetRepo, number: orphan, url: updated.html_url };
   }
 
-  const created = await gh.createIssue(view.targetRepo, payload);
+  const created = await gh.createIssue(view.targetRepo, payload, ghContextFor(profile));
   await recordPublication(profile, issue.short_id, view, created.number, created.html_url, hash);
   return { kind: "created", repo: view.targetRepo, number: created.number, url: created.html_url };
 }
@@ -134,13 +139,13 @@ export async function pullIssue(profile: Profile, issue: KataIssue): Promise<Pul
   const number = metaNumber(issue, META.pubNumber);
   if (!repo || number === undefined) return { kind: "not-published" };
 
-  const upstream = await gh.getIssue(repo, number);
+  const upstream = await gh.getIssue(repo, number, ghContextFor(profile));
   if (metaString(issue, META.ghUpdatedAt) === upstream.updated_at) {
     return { kind: "up-to-date", number };
   }
 
   const cursor = metaNumber(issue, META.ghCommentCursor) ?? 0;
-  const comments = (await gh.listComments(repo, number)).filter((c) => c.id > cursor);
+  const comments = (await gh.listComments(repo, number, ghContextFor(profile))).filter((c) => c.id > cursor);
 
   for (const c of comments) {
     const who = c.user?.login ?? "unknown";

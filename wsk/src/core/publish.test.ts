@@ -14,6 +14,8 @@ const profile: Profile = {
   ledger: true,
   corpus: null,
   requirePublicTitle: true,
+  ghCommand: "gh",
+  ghConfigDir: null,
   root: "/tmp/test",
   kataHome: "/tmp/test/.kata-home",
   repos: [{ dir: "alpha", url: "gh-test:Example/alpha.git", path: "/tmp/test/alpha", slug: "Example/alpha" }],

@@ -6,7 +6,7 @@ import { EpicError } from "../core/epic.js";
 import { SpiceError } from "../core/spice.js";
 import * as ghc from "../core/gh.js";
 import { LedgerError, listIssues, metaNumber, metaString } from "../core/ledger.js";
-import { publishIssue, pullIssue } from "../core/publish.js";
+import { ghContextFor, publishIssue, pullIssue } from "../core/publish.js";
 import { toPublicView } from "../core/publicview.js";
 import { META, describeRefusal } from "../core/schema.js";
 
@@ -71,14 +71,23 @@ async function doctor(argv: string[]): Promise<void> {
   };
 
   await check("kata", async () => (await run("kata", ["version"])).stdout.trim().split("\n")[0] ?? "?");
-  await check("gh", async () => (await run("gh", ["--version"])).stdout.trim().split("\n")[0] ?? "?");
-  await check("gh auth", async () => ((await ghc.authStatus()) ? "authenticated" : "NOT authenticated"));
+  await check("git-spice", async () => (await run("gs", ["--version"])).stdout.trim().split("\n")[0] ?? "?");
 
   let profiles: Profile[] = [];
   await check("profiles", async () => {
     profiles = loadProfiles();
     return profiles.map((p) => `${p.name} (${p.repos.length} repos, ${p.githubOwner})`).join("; ") || "none";
   });
+
+  // Credentials are per profile, so they are reported per profile.
+  for (const p of profiles) {
+    await check(`github:${p.name}`, async () => {
+      const ctx = ghContextFor(p);
+      const version = await run(ctx.command, ["--version"]).then((r) => r.stdout.trim().split("\n")[0] ?? "?");
+      const authed = await ghc.authStatus(ctx);
+      return `${ctx.command} ${version.replace(/^gh version /, "")} — ${authed ? "authenticated" : "NOT authenticated"}`;
+    });
+  }
 
   for (const p of profiles.filter((x) => x.ledger)) {
     await check(`ledger:${p.name}`, async () => {

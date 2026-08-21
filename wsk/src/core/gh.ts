@@ -4,7 +4,25 @@ import { z } from "zod";
 
 const run = promisify(execFile);
 
-/** The only module that shells out to gh. */
+/**
+ * The only module that shells out to the GitHub client.
+ *
+ * Which client, and whose credentials, belong to the profile: each has its own
+ * identity and its own access, and borrowing one profile's token for another
+ * profile's repositories is exactly the mistake worth making impossible.
+ */
+export interface GhContext {
+  readonly command: string;
+  readonly configDir: string | null;
+}
+
+export const DEFAULT_CONTEXT: GhContext = { command: "gh", configDir: null };
+
+function envFor(ctx: GhContext): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  if (ctx.configDir !== null) env["GH_CONFIG_DIR"] = ctx.configDir;
+  return env;
+}
 
 export class GhError extends Error {
   readonly stderr: string;
@@ -15,9 +33,9 @@ export class GhError extends Error {
   }
 }
 
-async function gh(args: string[], stdin?: string): Promise<unknown> {
+async function gh(ctx: GhContext, args: string[], stdin?: string): Promise<unknown> {
   try {
-    const child = run("gh", args, { maxBuffer: 64 * 1024 * 1024 });
+    const child = run(ctx.command, args, { maxBuffer: 64 * 1024 * 1024, env: envFor(ctx) });
     if (stdin !== undefined) {
       child.child.stdin?.end(stdin);
     }
@@ -47,33 +65,29 @@ export const GhComment = z.object({
 });
 export type GhComment = z.infer<typeof GhComment>;
 
-export async function authStatus(): Promise<boolean> {
+export async function authStatus(ctx: GhContext = DEFAULT_CONTEXT): Promise<boolean> {
   try {
-    await run("gh", ["auth", "status"]);
+    await run(ctx.command, ["auth", "status"], { env: envFor(ctx) });
     return true;
   } catch {
     return false;
   }
 }
 
-export async function createIssue(repo: string, payload: unknown): Promise<GhIssue> {
-  return GhIssue.parse(
-    await gh([`api`, `repos/${repo}/issues`, `--method`, `POST`, `--input`, `-`], JSON.stringify(payload)),
-  );
+export async function createIssue(repo: string, payload: unknown, ctx: GhContext = DEFAULT_CONTEXT): Promise<GhIssue> {
+  return GhIssue.parse(await gh(ctx, [`api`, `repos/${repo}/issues`, `--method`, `POST`, `--input`, `-`], JSON.stringify(payload)));
 }
 
-export async function updateIssue(repo: string, number: number, payload: unknown): Promise<GhIssue> {
-  return GhIssue.parse(
-    await gh([`api`, `repos/${repo}/issues/${number}`, `--method`, `PATCH`, `--input`, `-`], JSON.stringify(payload)),
-  );
+export async function updateIssue(repo: string, number: number, payload: unknown, ctx: GhContext = DEFAULT_CONTEXT): Promise<GhIssue> {
+  return GhIssue.parse(await gh(ctx, [`api`, `repos/${repo}/issues/${number}`, `--method`, `PATCH`, `--input`, `-`], JSON.stringify(payload)));
 }
 
-export async function getIssue(repo: string, number: number): Promise<GhIssue> {
-  return GhIssue.parse(await gh([`api`, `repos/${repo}/issues/${number}`]));
+export async function getIssue(repo: string, number: number, ctx: GhContext = DEFAULT_CONTEXT): Promise<GhIssue> {
+  return GhIssue.parse(await gh(ctx, [`api`, `repos/${repo}/issues/${number}`]));
 }
 
-export async function listComments(repo: string, number: number): Promise<GhComment[]> {
-  const raw = await gh([`api`, `repos/${repo}/issues/${number}/comments`, `--paginate`]);
+export async function listComments(repo: string, number: number, ctx: GhContext = DEFAULT_CONTEXT): Promise<GhComment[]> {
+  const raw = await gh(ctx, [`api`, `repos/${repo}/issues/${number}/comments`, `--paginate`]);
   return z.array(GhComment).parse(raw ?? []);
 }
 
@@ -82,9 +96,9 @@ export async function listComments(repo: string, number: number): Promise<GhComm
  * that dies between creating upstream and recording the number locally would
  * otherwise create a duplicate on the next attempt.
  */
-export async function findByMarker(repo: string, marker: string): Promise<number | undefined> {
+export async function findByMarker(repo: string, marker: string, ctx: GhContext = DEFAULT_CONTEXT): Promise<number | undefined> {
   const q = `repo:${repo} in:body "${marker}"`;
-  const raw = await gh([`api`, `search/issues`, `-X`, `GET`, `-f`, `q=${q}`]);
+  const raw = await gh(ctx, [`api`, `search/issues`, `-X`, `GET`, `-f`, `q=${q}`]);
   const parsed = z.object({ items: z.array(z.object({ number: z.number().int() })).default([]) }).parse(raw);
   return parsed.items[0]?.number;
 }

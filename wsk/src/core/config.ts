@@ -29,6 +29,13 @@ const ProfileEntry = z.object({
    * which is an accidental leak channel. A profile may opt into inheritance.
    */
   require_public_title: z.boolean().default(true),
+  /**
+   * Credentials are per profile: each has its own identity and its own access.
+   * `gh_command` names a wrapper if one is in use; `gh_config_dir` points the
+   * standard client at that profile's own credential store.
+   */
+  gh_command: z.string().default("gh"),
+  gh_config_dir: z.string().nullable().optional(),
 });
 
 export interface Repo {
@@ -45,6 +52,8 @@ export interface Profile {
   readonly ledger: boolean;
   readonly corpus: string | null;
   readonly requirePublicTitle: boolean;
+  readonly ghCommand: string;
+  readonly ghConfigDir: string | null;
   readonly root: string;
   readonly kataHome: string;
   readonly repos: readonly Repo[];
@@ -85,6 +94,8 @@ export function loadProfiles(): Profile[] {
       ledger: p.ledger,
       corpus: p.corpus ?? null,
       requirePublicTitle: p.require_public_title,
+      ghCommand: p.gh_command,
+      ghConfigDir: p.gh_config_dir ?? null,
       root,
       kataHome: resolve(root, ".kata-home"),
       repos,
