@@ -72,6 +72,8 @@ export interface IssueDetail {
   readonly blockedBy: readonly string[];
   /** Short ids of issues this one blocks. */
   readonly blocks: readonly string[];
+  /** Short id of the containing issue, when there is one. */
+  readonly parent: string | undefined;
 }
 
 export interface ListOptions {
@@ -99,10 +101,13 @@ export async function showIssueDetail(profile: Profile, ref: string): Promise<Is
   const parsed = ShowResult.parse(await kata(profile, ["show", ref]));
   const me = parsed.issue.short_id;
   const blocking = parsed.links.filter((l) => l.type === "blocks");
+  // A parent link points from the child to its container.
+  const parent = parsed.links.find((l) => l.type === "parent" && l.from.short_id === me);
   return {
     issue: parsed.issue,
     blockedBy: blocking.filter((l) => l.to.short_id === me).map((l) => l.from.short_id),
     blocks: blocking.filter((l) => l.from.short_id === me).map((l) => l.to.short_id),
+    parent: parent?.to.short_id,
   };
 }
 

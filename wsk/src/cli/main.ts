@@ -2,6 +2,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { ConfigError, loadProfiles, profileByName, resolveProfile, type Profile } from "../core/config.js";
+import { EpicError } from "../core/epic.js";
+import { SpiceError } from "../core/spice.js";
 import * as ghc from "../core/gh.js";
 import { LedgerError, listIssues, metaNumber, metaString } from "../core/ledger.js";
 import { publishIssue, pullIssue } from "../core/publish.js";
@@ -20,6 +22,12 @@ const USAGE = `wsk — work items for a seance profile
   wsk issues status [--stale]          local versus published state
   wsk issues publish <ref>... | --all  publish curated items (dry run unless --yes)
   wsk issues pull   [<ref>... | --all] read replies and upstream state back
+  wsk epic plan   <ref>                children in dependency order
+  wsk epic start  <ref>                one branch per child, stacked
+  wsk epic submit <ref> [--yes]        one change request per child (dry run by default)
+  wsk epic restack <ref>               rebase the stack after a change below
+  wsk epic status <ref>                branches and change requests versus the ledger
+
   wsk guard                            hook entry point; reads a tool call on stdin
 
 Global:
@@ -238,6 +246,22 @@ async function main(): Promise<void> {
 
   if (command === "doctor") return doctor(argv);
 
+  if (command === "epic") {
+    const sub = argv.shift();
+    const profile = pickProfile(argv);
+    const e = await import("./epic.js");
+    const ref = argv.find((a) => !a.startsWith("-"));
+    if (ref === undefined) fail("name the epic: wsk epic " + (sub ?? "plan") + " <ref>");
+    switch (sub) {
+      case "plan": return e.epicPlan(profile, ref);
+      case "start": return e.epicStart(profile, ref);
+      case "submit": return e.epicSubmit(profile, ref, { dryRun: !takeFlag(argv, "--yes"), draft: takeFlag(argv, "--draft") });
+      case "restack": return e.epicRestack(profile, ref);
+      case "status": return e.epicStatus(profile, ref);
+      default: fail(`unknown: wsk epic ${sub ?? ""}\n\n${USAGE}`);
+    }
+  }
+
   if (command === "issues") {
     const sub = argv.shift();
     const profile = pickProfile(argv);
@@ -260,5 +284,14 @@ async function main(): Promise<void> {
 main().catch((err: unknown) => {
   if (err instanceof ConfigError) fail(`configuration: ${err.message}`);
   if (err instanceof LedgerError) fail(`ledger: ${err.message}`, err.exitCode ?? 1);
+  if (err instanceof EpicError) fail(err.message, 2);
+  if (err instanceof SpiceError) {
+    const detail = err.stderr
+      .split("\n")
+      .filter((l) => /^(ERR|FTL)/.test(l))
+      .slice(0, 6)
+      .join("\n");
+    fail(`stacking: ${err.message}${detail ? `\n${detail}` : ""}`, 2);
+  }
   fail((err as Error).stack ?? String(err));
 });
