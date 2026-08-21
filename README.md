@@ -190,3 +190,31 @@ Re-provision after editing this repo: `cd /opt/seance && sudo git pull && sudo s
 ## Teardown
 
 Drop a box: remove its `boxes` entry and apply, or `terraform destroy -target='module.primary["agent1"]'`; then remove it from the Tailscale console. The sanctum stack stays. Wipe a box but keep it running: `sudo seance-nuke`, then re-provision with `git clone <repo> /opt/seance && sudo /opt/seance/scripts/bootstrap.sh` — it re-pulls the secrets and rejoins the tailnet. On the private-CA fallback it mints a new root that devices must re-trust; with a `desec_token` the Let's Encrypt cert just re-issues, nothing to re-trust.
+
+## Work items (`wsk`)
+
+Each workspace gets a local work-item ledger, and the upstream tracker becomes a curated,
+lossy mirror of it rather than the other way round. Declare a profile in tfvars beside its
+projects, and `wsk init` does the rest at bootstrap.
+
+    wsk doctor                     # is everything wired, per profile
+    wsk issues import --write      # load a ticket corpus, if the profile names one
+    wsk issues status              # what exists, and what has been published
+    wsk issues publish --all       # dry run; add --yes to send
+    wsk issues pull                # bring replies back as annotations
+    wsk epic plan|start|submit     # ship an epic as a stack of change requests
+    wsk fmt <file>...              # format with each repository's own tools
+
+Two rules the tooling enforces rather than documents:
+
+**Only curated text is published.** An item without curated public text is structurally
+unpublishable, which is also how items that must never leave are handled — by the same
+rule as everything else rather than a flag someone has to remember.
+
+**Code and commit messages carry no internal references.** They outlive this machine, and a
+reader elsewhere cannot resolve a local identifier. A pull request body is the exception,
+and must reference its upstream issue once the item is published.
+
+Credentials are per profile, so one profile's token cannot reach another's repositories.
+
+The ledger is SQLite and exports to JSONL; read it directly whenever that is easier.

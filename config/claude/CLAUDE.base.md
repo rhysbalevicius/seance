@@ -30,6 +30,27 @@ by the same rule as everything else, rather than by a flag someone has to rememb
 command that creates issues. The first would duplicate every item, the second would
 write into a repository, and the third bypasses the curation gate entirely.
 
+## Inspecting the ledger
+
+The ledger is an ordinary SQLite database, and reading it directly is supported rather
+than merely possible. Open it read-only: a daemon holds it in write-ahead mode, so a
+plain read can otherwise miss recent work.
+
+    sqlite3 "file:<workspace>/.kata-home/kata.db?mode=ro" \
+      "select json_extract(metadata,'$.\"src.id\"'), title
+         from issues where deleted_at is null;"
+
+Deletion is reversible, so deleted rows remain in the table. Filter on `deleted_at is
+null` or the counts will disagree with what the tooling reports.
+
+For a complete, format-stable copy — and for the backup worth taking before any upgrade:
+
+    kata export --allow-running-daemon --output ledger.jsonl
+
+That file restores into a fresh database with `kata import --input ledger.jsonl --target
+<path> --new-instance`, carrying items, metadata and dependency links. It is the exit
+path if this tooling is ever replaced, and it is worth running before it is needed.
+
 ## References
 
 Code and commit messages must stand on their own: they outlive this machine, and a
