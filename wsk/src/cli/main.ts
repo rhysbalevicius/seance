@@ -8,7 +8,7 @@ import * as ghc from "../core/gh.js";
 import { LedgerError, listIssues, metaNumber, metaString } from "../core/ledger.js";
 import { ghContextFor, publishIssue, pullIssue } from "../core/publish.js";
 import { toPublicView } from "../core/publicview.js";
-import { META, describeRefusal } from "../core/schema.js";
+import { META, UserError, describeRefusal } from "../core/schema.js";
 
 const run = promisify(execFile);
 
@@ -299,6 +299,12 @@ async function main(): Promise<void> {
         const { importCorpus } = await import("./import.js");
         return importCorpus(profile, { dryRun: !takeFlag(argv, "--write"), forceBody: takeFlag(argv, "--force-body") });
       }
+      case "edit-public": {
+        const { editPublic } = await import("./editpublic.js");
+        const ref = argv.find((a) => !a.startsWith("-"));
+        if (ref === undefined) fail("name the item: wsk issues edit-public <ref>");
+        return editPublic(profile, ref);
+      }
       case "list": return issuesList(profile, argv);
       case "status": return issuesStatus(profile, argv);
       case "publish": return issuesPublish(profile, argv);
@@ -313,6 +319,7 @@ async function main(): Promise<void> {
 main().catch((err: unknown) => {
   if (err instanceof ConfigError) fail(`configuration: ${err.message}`);
   if (err instanceof LedgerError) fail(`ledger: ${err.message}`, err.exitCode ?? 1);
+  if (err instanceof UserError) fail(err.message, 2);
   if (err instanceof EpicError) fail(err.message, 2);
   if (err instanceof SpiceError) {
     const detail = err.stderr

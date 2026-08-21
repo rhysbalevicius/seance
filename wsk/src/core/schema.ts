@@ -40,6 +40,18 @@ export const REPO_LABEL_PREFIX = "repo:";
 /** Blocks publication outright, whatever else is set. */
 export const HOLD_LABEL = "publish:hold";
 
+/**
+ * A failure caused by how the command was used or by the content it was given,
+ * as opposed to a defect. These print as a plain message; a stack trace would
+ * only bury the sentence the reader needs.
+ */
+export class UserError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserError";
+  }
+}
+
 export const IssueRef = z.string().min(1).describe("kata short id, qualified short id, or ULID");
 
 /** An issue exactly as kata returns it. Carries the private body. */

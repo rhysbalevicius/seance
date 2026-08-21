@@ -4,19 +4,35 @@
   "description": "Local-first work-item ledger with curated GitHub publishing, enforced conventions, and epics as stacked PRs.",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22.18" },
-  "bin": { "wsk": "./dist/cli/main.js" },
-  "exports": {
-    ".": { "types": "./dist/cli/main.d.ts", "default": "./dist/cli/main.js" },
-    "./core": { "types": "./dist/core/index.d.ts", "default": "./dist/core/index.js" },
-    "./mastra": { "types": "./dist/mastra/index.d.ts", "default": "./dist/mastra/index.js" }
+  "engines": {
+    "node": ">=22.18"
   },
-  "files": ["dist"],
+  "bin": {
+    "wsk": "./dist/cli/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/cli/main.d.ts",
+      "default": "./dist/cli/main.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test dist/**/*.test.js"
   },
-  "dependencies": { "zod": "^3.24.1" },
-  "devDependencies": { "typescript": "^5.7.2", "@types/node": "^22.10.2" }
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
 }
